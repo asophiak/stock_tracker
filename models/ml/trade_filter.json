@@ -1,0 +1,71 @@
+{
+  "kind": "gbm",
+  "trained_at": "2026-10-01T03:09:09.259905+00:00",
+  "features": [
+    "engine_scalp",
+    "direction",
+    "engine_score",
+    "minutes_since_open",
+    "atr_pct",
+    "stop_atr",
+    "ret_1_atr",
+    "ret_5_atr",
+    "ret_15_atr",
+    "ret_30_atr",
+    "vwap_dist_atr",
+    "rsi7_signed",
+    "rsi14_signed",
+    "ema9_21_atr",
+    "vol_ratio_1_30",
+    "vol_ratio_5_30",
+    "range_pos",
+    "session_range_atr",
+    "room_atr",
+    "last_body_atr",
+    "bar_trend_10"
+  ],
+  "threshold": 0.51,
+  "n_samples": 313509,
+  "sessions": [
+    "2026-06-09",
+    "2026-09-30"
+  ],
+  "test_metrics": {
+    "all": {
+      "n": 73303,
+      "base_win_rate": 0.447812504263127,
+      "base_avg_r": -0.02763178209134989,
+      "auc": 0.5438209584964816,
+      "auc_engine_score": 0.49145517078906537,
+      "brier": 0.24635083518244472,
+      "kept_frac": 0.11254655334706629,
+      "kept_win_rate": 0.5025454545454545,
+      "kept_avg_r": 0.03242562251967413,
+      "skipped_avg_r": -0.035248242332091256
+    },
+    "scalp": {
+      "n": 72302,
+      "base_win_rate": 0.44827252358164366,
+      "base_avg_r": -0.029238116962972373,
+      "auc": 0.5431849420103895,
+      "auc_engine_score": 0.4917949018368874,
+      "brier": 0.24640490859595732,
+      "kept_frac": 0.10970650881026804,
+      "kept_win_rate": 0.5032778618255169,
+      "kept_avg_r": 0.03504322547203649,
+      "skipped_avg_r": -0.03715919212522949
+    },
+    "swing": {
+      "n": 1001,
+      "base_win_rate": 0.4145854145854146,
+      "base_avg_r": 0.08839341659800957,
+      "auc": 0.5795057362556026,
+      "auc_engine_score": 0.44899872527653273,
+      "brier": 0.24244512494888926,
+      "kept_frac": 0.3176823176823177,
+      "kept_win_rate": 0.48427672955974843,
+      "kept_avg_r": -0.032866285084534375,
+      "skipped_avg_r": 0.14485108151023357
+    }
+  }
+}

@@ -1,0 +1,746 @@
+{% extends "base.html" %}
+{% block title %}Trade Journal — Bot Learning Log{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Trade Journal <span style="font-size:.8rem;color:var(--text-muted);font-weight:400">— Bot Learning Log</span></h1>
+  <div class="header-actions">
+    <select id="journal-date-filter" class="input input-sm" onchange="loadJournal()">
+      <option value="">All sessions</option>
+    </select>
+  </div>
+</div>
+
+<!-- ── Tab switcher ── -->
+<div class="tab-bar" style="margin-bottom:1.25rem">
+  <button class="tab-btn active" id="tab-swing" onclick="switchTab('swing')"><i data-icon="activity"></i>Swing Bot</button>
+  <button class="tab-btn" id="tab-scalp" onclick="switchTab('scalp')"><i data-icon="zap"></i>Scalp Bot</button>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- SWING BOT TAB                                                            -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<div id="tab-swing-content">
+
+<!-- ── Top stats bar ── -->
+<div class="journal-stats-bar" id="journal-stats-bar">
+  <div class="jstat"><div class="jstat-val" id="js-trades">--</div><div class="jstat-lbl">Trades</div></div>
+  <div class="jstat"><div class="jstat-val green" id="js-winners">--</div><div class="jstat-lbl">Winners</div></div>
+  <div class="jstat"><div class="jstat-val red" id="js-losers">--</div><div class="jstat-lbl">Losers</div></div>
+  <div class="jstat"><div class="jstat-val" id="js-winrate">--%</div><div class="jstat-lbl">Win Rate</div></div>
+  <div class="jstat"><div class="jstat-val" id="js-pnl">$--</div><div class="jstat-lbl">Gross P&L</div></div>
+  <div class="jstat"><div class="jstat-val" id="js-expectancy">$--</div><div class="jstat-lbl">Expectancy/Trade</div></div>
+  <div class="jstat"><div class="jstat-val" id="js-avgwin">$--</div><div class="jstat-lbl">Avg Win</div></div>
+  <div class="jstat"><div class="jstat-val" id="js-avgloss">$--</div><div class="jstat-lbl">Avg Loss</div></div>
+  <div class="jstat"><div class="jstat-val" id="js-streak">--</div><div class="jstat-lbl">Current Streak</div></div>
+</div>
+
+<div class="journal-two-col mt-4">
+
+  <!-- ── Left: Bot Lessons + Pattern Stats ── -->
+  <div>
+
+    <!-- Grade distribution -->
+    <div class="panel">
+      <div class="panel-header">Execution Grades</div>
+      <div id="grade-dist" class="grade-dist-row">
+        <span class="empty-state">No grades yet.</span>
+      </div>
+    </div>
+
+    <!-- Bot's self-assessment: what it learned -->
+    <div class="panel mt-3 learning-panel">
+      <div class="panel-header" style="color:var(--blue)"><i data-icon="brain"></i>What The Bot Learned</div>
+      <div id="bot-lessons-list">
+        <p class="empty-state">Lessons accumulate as the bot makes trades and mistakes.</p>
+      </div>
+    </div>
+
+    <!-- Pattern performance -->
+    <div class="panel mt-3">
+      <div class="panel-header">Pattern Win Rates</div>
+      <div id="pattern-stats-table">
+        <p class="empty-state">No pattern data yet.</p>
+      </div>
+    </div>
+
+    <!-- Time of day performance -->
+    <div class="panel mt-3">
+      <div class="panel-header">Time-of-Day Performance</div>
+      <div id="time-stats-table">
+        <p class="empty-state">No data yet.</p>
+      </div>
+    </div>
+
+    <!-- Open positions -->
+    <div class="panel mt-3">
+      <div class="panel-header">Open Positions</div>
+      <div id="open-positions-table">
+        <p class="empty-state p-4">No open positions.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Right: Trade Cards ── -->
+  <div>
+    <div class="panel">
+      <div class="panel-header">
+        Closed Trades
+        <span id="trade-count-badge" class="score-pill" style="margin-left:.5rem">0</span>
+      </div>
+      <div id="trade-cards-list">
+        <p class="empty-state p-4">No trades yet. The bot will log every entry and exit here.</p>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end journal-two-col -->
+</div><!-- end tab-swing-content -->
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- SCALP BOT TAB                                                             -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<div id="tab-scalp-content" style="display:none">
+
+  <!-- Bot logic / config panel -->
+  <div class="panel mb-3" id="scalp-config-panel">
+    <div class="panel-header" style="color:var(--blue)"><i data-icon="zap"></i>Scalp Bot Logic</div>
+    <div id="scalp-config-body" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.75rem;padding:.5rem 0">
+      <div class="jstat"><div class="jstat-val" id="sc-enabled">--</div><div class="jstat-lbl">Mode</div></div>
+      <div class="jstat"><div class="jstat-val" id="sc-entry">--</div><div class="jstat-lbl">Entry Score</div></div>
+      <div class="jstat"><div class="jstat-val" id="sc-flash">--</div><div class="jstat-lbl">Flash Threshold</div></div>
+      <div class="jstat"><div class="jstat-val" id="sc-trade">--</div><div class="jstat-lbl">Trade Threshold</div></div>
+      <div class="jstat"><div class="jstat-val" id="sc-cooldown">--</div><div class="jstat-lbl">Cooldown</div></div>
+      <div class="jstat"><div class="jstat-val" id="sc-alloc">--</div><div class="jstat-lbl">Alloc % / Trade</div></div>
+    </div>
+    <div style="font-size:.72rem;color:var(--text-muted);margin-top:.5rem;line-height:1.6">
+      Runs on <strong>1-minute bars only</strong> using fast indicators:
+      EMA(3/8) cross · RSI(7) · MACD(5,13,4) · 5-bar momentum · VWAP side · Volume surge.
+      Needs only <strong>1 component</strong> above 0.40 raw score to set direction (vs 2 for swing).
+      Stop = ATR(14,1m)×0.8 · Target = 2× stop · RR = 2:1.
+    </div>
+  </div>
+
+  <div class="journal-two-col">
+
+    <!-- Left: open positions + recent scalp trades -->
+    <div>
+      <div class="panel">
+        <div class="panel-header">Open Scalp Positions</div>
+        <div id="scalp-positions-table"><p class="empty-state p-4">No open scalp positions.</p></div>
+      </div>
+
+      <div class="panel mt-3">
+        <div class="panel-header">Scalp Trade History
+          <span id="scalp-trade-count" class="score-pill" style="margin-left:.5rem">0</span>
+        </div>
+        <div id="scalp-trade-list"><p class="empty-state p-4">No scalp trades yet.</p></div>
+      </div>
+    </div>
+
+    <!-- Right: live signal table -->
+    <div>
+      <div class="panel">
+        <div class="panel-header">Live Scalp Signals
+          <span style="font-size:.68rem;color:var(--text-muted);font-weight:400;margin-left:.4rem">updates every 30s</span>
+        </div>
+        <div id="scalp-signal-table"><p class="empty-state p-4">Loading signals…</p></div>
+      </div>
+    </div>
+
+  </div><!-- end journal-two-col -->
+
+  <!-- Live feed: most recent scalp bot events (from SSE) -->
+  <div class="panel mt-3">
+    <div class="panel-header"><i data-icon="zap"></i>Scalp Bot Live Feed</div>
+    <div id="scalp-live-feed" style="font-family:var(--font-mono);font-size:.72rem;max-height:240px;overflow-y:auto">
+      <p class="empty-state p-3">Listening for scalp entries and exits…</p>
+    </div>
+  </div>
+
+</div><!-- end tab-scalp-content -->
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── Data loading ─────────────────────────────────────────────────────────────
+
+async function loadJournal() {
+  const [statsR, tradesR, posR] = await Promise.all([
+    fetch('/api/paper/journal/stats'),
+    fetch('/api/paper/trades'),
+    fetch('/api/paper/positions'),
+  ]);
+  const stats  = statsR.ok  ? await statsR.json()  : {};
+  const trades = tradesR.ok ? await tradesR.json() : [];
+  const pos    = posR.ok    ? await posR.json()    : [];
+
+  // Populate the date dropdown first (preserves current selection)
+  renderDateFilter(trades);
+
+  // Apply date filter if one is selected
+  const sel = document.getElementById('journal-date-filter');
+  const selectedDate = sel.value;
+  const filtered = selectedDate ? trades.filter(t => t.session_date === selectedDate) : trades;
+
+  // Stats: use API stats for "all sessions", compute from filtered trades for a specific day
+  if (selectedDate) {
+    renderStats(_computeStats(filtered));
+  } else {
+    renderStats(stats);
+  }
+
+  renderPatternStats(stats.pattern_stats || {});
+  renderTimeStats(stats.time_stats || {});
+  renderGrades(stats.grades || {});
+  renderLessons(filtered);
+  renderPositions(pos);
+  renderTradeCards(filtered);
+}
+
+function _computeStats(trades) {
+  if (!trades.length) return {};
+  const winners = trades.filter(t => t.pnl > 0);
+  const losers  = trades.filter(t => t.pnl <= 0);
+  const wr      = winners.length / trades.length;
+  const avgWin  = winners.length ? winners.reduce((s, t) => s + t.pnl, 0) / winners.length : 0;
+  const avgLoss = losers.length  ? losers.reduce((s, t) => s + t.pnl, 0)  / losers.length  : 0;
+  const expectancy = avgWin * wr + avgLoss * (1 - wr);
+
+  // Current streak from this filtered set (most recent first)
+  let streak = 0, streakType = null;
+  for (const t of [...trades].sort((a,b) => new Date(b.closed_at)-new Date(a.closed_at))) {
+    if (streakType === null) { streakType = t.pnl > 0 ? 'win' : 'loss'; streak = 1; }
+    else if ((t.pnl > 0) === (streakType === 'win')) streak++;
+    else break;
+  }
+
+  return {
+    total_trades:  trades.length,
+    total_winners: winners.length,
+    total_losers:  losers.length,
+    win_rate:      Math.round(wr * 1000) / 10,
+    avg_win:       avgWin,
+    avg_loss:      avgLoss,
+    expectancy,
+    gross_pnl:     trades.reduce((s, t) => s + t.pnl, 0),
+    streak,
+    streak_type:   streakType,
+  };
+}
+
+// ── Stats bar ─────────────────────────────────────────────────────────────────
+
+function renderStats(s) {
+  const pnl = s.gross_pnl ?? 0;
+  const exp = s.expectancy ?? 0;
+  _jstat('js-trades',     s.total_trades    ?? '--');
+  _jstat('js-winners',    s.total_winners   ?? '--', 'green');
+  _jstat('js-losers',     s.total_losers    ?? '--', 'red');
+  _jstat('js-winrate',    (s.win_rate ?? '--') + '%', s.win_rate >= 50 ? 'green' : 'red');
+  _jstat('js-pnl',        money(pnl, {signed: true}), pnl >= 0 ? 'green' : 'red');
+  _jstat('js-expectancy', money(exp, {signed: true}), exp >= 0 ? 'green' : 'red');
+  _jstat('js-avgwin',     money((s.avg_win  ?? 0)), 'green');
+  _jstat('js-avgloss',    money((s.avg_loss ?? 0)), 'red');
+  const streak = s.streak ?? 0;
+  const st = s.streak_type;
+  _jstat('js-streak',
+    streak > 0 ? `${streak}× ${st === 'win' ? 'wins' : 'losses'}` : '--',
+    st === 'win' ? 'green' : (st === 'loss' ? 'red' : ''));
+}
+
+function _jstat(id, val, cls) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = val;
+  if (cls) el.className = 'jstat-val ' + cls;
+}
+
+// ── Grades ────────────────────────────────────────────────────────────────────
+
+function renderGrades(grades) {
+  const el = document.getElementById('grade-dist');
+  const order = ['A','B','C','D','F'];
+  const colors = {A:'var(--green)',B:'#6fcf7c',C:'var(--text-muted)',D:'#e57373',F:'var(--red)'};
+  const desc   = {A:'Target hit',B:'Profitable exit',C:'Break-even/small loss',D:'Stop hit, valid setup',F:'Rapid stop / bad entry'};
+  let html = '';
+  for (const g of order) {
+    const cnt = grades[g] || 0;
+    html += `<div class="grade-chip" style="border-color:${colors[g]}" title="${desc[g]}">
+      <span class="grade-letter" style="color:${colors[g]}">${g}</span>
+      <span class="grade-count">${cnt}</span>
+    </div>`;
+  }
+  el.innerHTML = html || '<span class="empty-state">No grades yet.</span>';
+}
+
+// ── Bot Lessons ───────────────────────────────────────────────────────────────
+
+function renderLessons(trades) {
+  const el = document.getElementById('bot-lessons-list');
+  // Collect unique lesson sentences from loss trades, most recent first
+  const losses = trades.filter(t => t.pnl < 0 && t.lesson).sort((a,b) => new Date(b.closed_at)-new Date(a.closed_at));
+  const wins   = trades.filter(t => t.pnl > 0 && t.lesson).sort((a,b) => new Date(b.closed_at)-new Date(a.closed_at));
+
+  if (!losses.length && !wins.length) {
+    el.innerHTML = '<p class="empty-state">No lessons yet — lessons are generated automatically from each trade.</p>';
+    return;
+  }
+
+  let html = '';
+  // Losses first (most important learnings)
+  losses.slice(0, 8).forEach(t => {
+    html += `<div class="lesson-card loss-lesson">
+      <div class="lesson-header">
+        <span class="lesson-sym">${t.symbol}</span>
+        <span class="grade-tag grade-${t.grade || '?'}">${t.grade || '?'}</span>
+        <span class="lesson-pnl red">${money(t.pnl)}</span>
+        <span class="lesson-meta">${new Date(t.closed_at).toLocaleString()}</span>
+      </div>
+      <div class="lesson-text">${t.lesson}</div>
+    </div>`;
+  });
+  wins.slice(0, 4).forEach(t => {
+    if (!t.lesson) return;
+    html += `<div class="lesson-card win-lesson">
+      <div class="lesson-header">
+        <span class="lesson-sym">${t.symbol}</span>
+        <span class="grade-tag grade-${t.grade || '?'}">${t.grade || '?'}</span>
+        <span class="lesson-pnl green">${money(t.pnl, {signed: true})}</span>
+        <span class="lesson-meta">${new Date(t.closed_at).toLocaleString()}</span>
+      </div>
+      <div class="lesson-text">${t.lesson}</div>
+    </div>`;
+  });
+  el.innerHTML = html;
+}
+
+// ── Pattern stats ─────────────────────────────────────────────────────────────
+
+function renderPatternStats(stats) {
+  const el = document.getElementById('pattern-stats-table');
+  const patterns = Object.entries(stats).sort((a,b) => b[1].total - a[1].total);
+  if (!patterns.length) { el.innerHTML = '<p class="empty-state">No pattern data yet.</p>'; return; }
+
+  let html = '<table class="data-table"><thead><tr><th>Pattern</th><th>Trades</th><th>Wins</th><th>Losses</th><th>Win %</th><th>Verdict</th></tr></thead><tbody>';
+  patterns.forEach(([name, s]) => {
+    const pctCls = s.win_pct >= 60 ? 'green' : (s.win_pct < 40 ? 'red' : '');
+    const verdict = s.win_pct >= 65 ? '<span class="tag tag-pos">Reliable</span>' : (s.win_pct < 40 ? '<span class="tag tag-neg">Avoid</span>' : '<span class="tag tag-warn">Marginal</span>');
+    html += `<tr>
+      <td style="font-family:var(--font-mono);font-size:.75rem">${name.replace(/_/g,' ')}</td>
+      <td>${s.total}</td>
+      <td class="green">${s.wins}</td>
+      <td class="red">${s.losses}</td>
+      <td class="${pctCls}" style="font-weight:600">${s.win_pct}%</td>
+      <td style="font-size:.72rem">${verdict}</td>
+    </tr>`;
+  });
+  el.innerHTML = html + '</tbody></table>';
+}
+
+// ── Time stats ────────────────────────────────────────────────────────────────
+
+function renderTimeStats(stats) {
+  const el = document.getElementById('time-stats-table');
+  const ORDER = ['open','morning','midday','afternoon','unknown'];
+  const LABELS = {open:'Open (9:30–10:30)', morning:'Morning (10:30–12:00)', midday:'Midday (12:00–14:30)', afternoon:'Afternoon (14:30–16:00)', unknown:'Unknown'};
+  const entries = ORDER.filter(k => stats[k]);
+  if (!entries.length) { el.innerHTML = '<p class="empty-state">No data yet.</p>'; return; }
+
+  let html = '<table class="data-table"><thead><tr><th>Session</th><th>Trades</th><th>Win %</th><th>Recommendation</th></tr></thead><tbody>';
+  entries.forEach(bucket => {
+    const s = stats[bucket];
+    const pctCls = s.win_pct >= 55 ? 'green' : (s.win_pct < 40 ? 'red' : '');
+    const rec = s.win_pct >= 60 ? '<span class="tag tag-pos">High priority</span>' : (s.win_pct < 40 ? '<span class="tag tag-neg">Avoid or reduce size</span>' : '<span class="tag tag-warn">Trade with caution</span>');
+    html += `<tr>
+      <td style="font-size:.78rem">${LABELS[bucket]}</td>
+      <td>${s.total}</td>
+      <td class="${pctCls}" style="font-weight:600">${s.win_pct}%</td>
+      <td style="font-size:.72rem">${rec}</td>
+    </tr>`;
+  });
+  el.innerHTML = html + '</tbody></table>';
+}
+
+// ── Open positions ────────────────────────────────────────────────────────────
+
+function renderPositions(positions) {
+  const el = document.getElementById('open-positions-table');
+  if (!positions.length) { el.innerHTML = '<p class="empty-state p-4">No open positions.</p>'; return; }
+  let html = '<table class="data-table"><thead><tr><th>Symbol</th><th>Side</th><th>Qty</th><th>Entry</th><th>Current</th><th>Unr. P&L</th><th>Stop</th><th>Target</th><th></th></tr></thead><tbody>';
+  positions.forEach(p => {
+    const pnlCls = (p.unrealized_pnl||0) >= 0 ? 'green' : 'red';
+    html += `<tr>
+      <td><a href="/symbol/${p.symbol}">${p.symbol}</a></td>
+      <td class="${p.side==='long'?'green':'red'}">${p.side.toUpperCase()}</td>
+      <td>${p.qty}</td><td>${money(p.avg_entry_price)}</td>
+      <td>${money(p.current_price)}</td>
+      <td class="${pnlCls}">${money((p.unrealized_pnl||0))}</td>
+      <td>${p.stop_price?money(p.stop_price):'--'}</td>
+      <td>${p.take_profit_price?money(p.take_profit_price):'--'}</td>
+      <td><button onclick="closePos('${p.symbol}')" class="btn btn-xs btn-red">Close</button></td>
+    </tr>`;
+  });
+  el.innerHTML = html + '</tbody></table>';
+}
+
+// ── Trade cards ───────────────────────────────────────────────────────────────
+
+function renderTradeCards(trades) {
+  const el = document.getElementById('trade-cards-list');
+  document.getElementById('trade-count-badge').textContent = trades.length;
+  if (!trades.length) { el.innerHTML = '<p class="empty-state p-4">No trades yet.</p>'; return; }
+
+  const sorted = [...trades].sort((a,b) => new Date(b.closed_at)-new Date(a.closed_at));
+  el.innerHTML = sorted.map(t => _tradeCard(t)).join('');
+}
+
+function _tradeCard(t) {
+  const win    = t.pnl >= 0;
+  const pnlCls = win ? 'green' : 'red';
+  const gradeCl= {A:'grade-A',B:'grade-B',C:'grade-C',D:'grade-D',F:'grade-F'}[t.grade] || '';
+  const openedAt = new Date(t.opened_at).toLocaleString();
+  const closedAt = new Date(t.closed_at).toLocaleString();
+  const holdMs   = new Date(t.closed_at) - new Date(t.opened_at);
+  const holdStr  = `${Math.floor(holdMs/60000)}m ${Math.floor((holdMs%60000)/1000)}s`;
+
+  // Signal summary from entry_signal_json
+  let signalHtml = '';
+  if (t.entry_signal_json) {
+    try {
+      const sig = JSON.parse(t.entry_signal_json);
+      const patterns = sig.patterns || [];
+      const score    = sig.total_score || 0;
+      const color    = sig.color || '';
+      const vwap     = sig.vwap_position || '';
+      const comps    = sig.components || [];
+
+      const patTag = patterns.length
+        ? patterns.map(p=>`<span class="pattern-tag">${p.replace(/_/g,' ')}</span>`).join('')
+        : '<span class="muted" style="font-size:.7rem">No patterns detected</span>';
+
+      const compBars = comps.map(c => {
+        const pct = Math.round(c.raw_score * 100);
+        const barCls = c.direction > 0 ? 'comp-bar-bull' : (c.direction < 0 ? 'comp-bar-bear' : 'comp-bar-neu');
+        return `<div class="comp-mini">
+          <span class="comp-mini-name">${c.name.replace('_',' ')}</span>
+          <div class="comp-mini-bar"><div class="comp-mini-fill ${barCls}" style="width:${pct}%"></div></div>
+          <span class="comp-mini-pct">${pct}</span>
+        </div>`;
+      }).join('');
+
+      const bucket = _scoreBucket(score);
+      const phase  = t.time_bucket
+        ? `<span class="phase-tag phase-${t.time_bucket}">${t.time_bucket}</span>`
+        : '';
+      signalHtml = `
+        <div class="trade-signal-box">
+          <div class="trade-signal-header">
+            <span>Score at entry: <strong>${score.toFixed(0)}/100</strong>
+              <span class="score-bucket-tag">${bucket}</span>
+            </span>
+            <span class="signal-badge ${color.toLowerCase().replace('_','-')}" style="font-size:.6rem">${color.replace('_',' ')}</span>
+            ${vwap ? `<span class="muted" style="font-size:.7rem">VWAP: ${vwap}</span>` : ''}
+            ${phase}
+          </div>
+          <div class="trade-patterns">${patTag}</div>
+          <div class="comp-mini-list">${compBars}</div>
+        </div>`;
+    } catch(e) {}
+  }
+
+  const lessonHtml = t.lesson
+    ? `<div class="trade-lesson"><span class="lesson-icon">${icon(win ? 'check' : 'book')}</span>${t.lesson}</div>`
+    : '';
+
+  const closeReasonLabel = {
+    target_hit:              icon('target') + 'Target Hit',
+    stop_hit:                icon('stop') + 'Stop Hit',
+    signal_reversed_bearish: '↩ Signal Reversed (Bearish)',
+    signal_reversed_bullish: '↩ Signal Reversed (Bullish)',
+    signal_exhausted:        '⬇ Signal Exhausted',
+    eod_flatten:             icon('bell') + 'EOD Close',
+    manual:                  icon('hand') + 'Manual Close',
+  }[t.close_reason] || t.close_reason || '--';
+
+  return `<div class="trade-card ${win ? 'trade-win' : 'trade-loss'}">
+    <div class="trade-card-header">
+      <span class="trade-sym"><a href="/symbol/${t.symbol}">${t.symbol}</a></span>
+      <span class="trade-side ${t.side==='long'?'green':'red'}">${t.side?.toUpperCase()}</span>
+      <span class="grade-tag ${gradeCl}">${t.grade || '?'}</span>
+      <span class="trade-pnl ${pnlCls}">${money(t.pnl, {signed: true})}</span>
+      <span class="trade-pnlpct ${pnlCls}">(${win?'+':''}${t.pnl_pct?.toFixed(2)||'--'}%)</span>
+      <span class="trade-meta">${closeReasonLabel}</span>
+    </div>
+
+    <div class="trade-card-body">
+      <div class="trade-details-row">
+        <span>Qty: <strong>${t.qty}</strong></span>
+        <span>Entry: <strong>${money(t.entry_price)}</strong></span>
+        <span>Exit: <strong>${money(t.exit_price)}</strong></span>
+        ${t.stop_price    ? `<span>Stop: <strong class="red">${money(t.stop_price)}</strong></span>` : ''}
+        ${t.take_profit_price ? `<span>Target: <strong class="green">${money(t.take_profit_price)}</strong></span>` : ''}
+        <span>Held: <strong>${holdStr}</strong></span>
+        <span class="trade-meta">${openedAt} → ${closedAt}</span>
+      </div>
+
+      ${signalHtml}
+      ${lessonHtml}
+    </div>
+  </div>`;
+}
+
+// ── Score bucket helper ───────────────────────────────────────────────────────
+
+function _scoreBucket(score) {
+  if (score >= 85) return '85+';
+  if (score >= 80) return '80-84';
+  if (score >= 75) return '75-79';
+  if (score >= 70) return '70-74';
+  if (score >= 65) return '65-69';
+  if (score >= 60) return '60-64';
+  return '<60';
+}
+
+// ── Date filter ───────────────────────────────────────────────────────────────
+
+function renderDateFilter(trades) {
+  const sel = document.getElementById('journal-date-filter');
+  const dates = [...new Set(trades.map(t => t.session_date).filter(Boolean))].sort().reverse();
+  // Keep existing options, add new ones
+  const existing = new Set([...sel.options].map(o => o.value));
+  dates.forEach(d => {
+    if (!existing.has(d)) {
+      const opt = document.createElement('option');
+      opt.value = d; opt.textContent = d;
+      sel.appendChild(opt);
+    }
+  });
+}
+
+async function closePos(symbol) {
+  if (!confirm(`Close position in ${symbol}?`)) return;
+  const r = await fetch('/api/paper/close', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({symbol, reason:'manual'})
+  });
+  const d = await r.json();
+  if (r.ok) { alert(`${symbol} closed. P&L: ${money(d.pnl)}`); loadJournal(); }
+}
+
+loadJournal();
+setInterval(loadJournal, 15000);
+
+// ── Tab switching ─────────────────────────────────────────────────────────────
+
+function switchTab(tab) {
+  document.getElementById('tab-swing-content').style.display = tab === 'swing' ? '' : 'none';
+  document.getElementById('tab-scalp-content').style.display = tab === 'scalp' ? '' : 'none';
+  document.getElementById('tab-swing').classList.toggle('active', tab === 'swing');
+  document.getElementById('tab-scalp').classList.toggle('active', tab === 'scalp');
+  if (tab === 'scalp') loadScalp();
+}
+
+// ── Scalp tab data loading ────────────────────────────────────────────────────
+
+async function loadScalp() {
+  const [sigR, tradesR, posR] = await Promise.all([
+    fetch('/api/paper/scalp-signals'),
+    fetch('/api/paper/trades'),
+    fetch('/api/paper/positions'),
+  ]);
+  const sigData = sigR.ok ? await sigR.json() : {};
+  const allTrades = tradesR.ok ? await tradesR.json() : [];
+  const allPos    = posR.ok    ? await posR.json()    : [];
+
+  // Config
+  const cfg = sigData.config || {};
+  document.getElementById('sc-enabled').textContent  = cfg.enabled ? 'ACTIVE' : 'OFF';
+  document.getElementById('sc-entry').textContent    = cfg.entry_score ?? '--';
+  document.getElementById('sc-flash').textContent    = cfg.flash_threshold ?? '--';
+  document.getElementById('sc-trade').textContent    = cfg.trade_threshold ?? '--';
+  document.getElementById('sc-cooldown').textContent = (cfg.cooldown_min ?? '--') + ' min';
+  document.getElementById('sc-alloc').textContent    = (cfg.allocation_pct ?? '--') + '%';
+
+  // Signals
+  renderScalpSignals(sigData.signals || []);
+
+  // Filter scalp positions and trades by thesis_summary prefix
+  const scalpPos    = allPos.filter(p => p.strategy_version === 'scalp');
+  const scalpTrades = allTrades.filter(t => t.thesis_summary && t.thesis_summary.startsWith('Scalp'));
+
+  renderScalpPositions(scalpPos);
+  renderScalpTrades(scalpTrades);
+}
+
+function renderScalpSignals(signals) {
+  const el = document.getElementById('scalp-signal-table');
+  if (!signals.length) { el.innerHTML = '<p class="empty-state p-4">No scalp signals yet.</p>'; return; }
+
+  const colorMap = {
+    FLASH_GREEN: '#00e676', FLASH_RED: '#ff1744',
+    GREEN: 'var(--green)', RED: 'var(--red)', NEUTRAL: 'var(--text-muted)'
+  };
+
+  let html = `<table class="data-table" style="font-size:.72rem">
+    <thead><tr>
+      <th>Symbol</th><th>Score</th><th>Dir</th><th>Color</th>
+      <th>Price</th><th>Stop %</th><th>Target %</th>
+      <th>EMA</th><th>RSI</th><th>MACD</th><th>Vol</th>
+    </tr></thead><tbody>`;
+
+  signals.forEach(s => {
+    const dirStr = s.direction === 1 ? '▲ LONG' : (s.direction === -1 ? '▼ SHORT' : '—');
+    const dirCls = s.direction === 1 ? 'green' : (s.direction === -1 ? 'red' : '');
+    const col    = colorMap[s.color] || 'var(--text-muted)';
+    const stop   = s.thesis?.stop_pct   != null ? s.thesis.stop_pct.toFixed(2) + '%'   : '--';
+    const tgt    = s.thesis?.target_pct != null ? s.thesis.target_pct.toFixed(2) + '%' : '--';
+
+    const getComp = name => s.components?.find(c => c.name === name);
+    const compPct = name => { const c = getComp(name); return c ? Math.round(c.raw_score * 100) : null; };
+    const compDir = name => { const c = getComp(name); return c ? c.direction : 0; };
+    const bar = (name) => {
+      const pct = compPct(name);
+      if (pct == null) return '--';
+      const d = compDir(name);
+      const barCls = d > 0 ? '#00e676' : (d < 0 ? '#ff1744' : '#888');
+      return `<span style="display:inline-block;width:32px;background:#222;border-radius:2px;vertical-align:middle">
+        <span style="display:block;width:${pct}%;background:${barCls};height:6px;border-radius:2px"></span>
+      </span><span style="margin-left:3px">${pct}</span>`;
+    };
+
+    const scoreColor = s.score >= 75 ? '#00e676' : (s.score >= 62 ? 'var(--green)' : (s.score >= 50 ? 'var(--text-muted)' : '#888'));
+    html += `<tr>
+      <td><a href="/symbol/${s.symbol}" style="font-weight:600">${s.symbol}</a></td>
+      <td style="color:${scoreColor};font-weight:700">${s.score.toFixed(0)}</td>
+      <td class="${dirCls}" style="font-weight:600;font-size:.68rem">${dirStr}</td>
+      <td><span style="color:${col};font-size:.65rem;font-weight:600">${s.color.replace('_',' ')}</span></td>
+      <td>${money(s.price)}</td>
+      <td class="red" style="font-size:.68rem">${stop}</td>
+      <td class="green" style="font-size:.68rem">${tgt}</td>
+      <td>${bar('scalp_ema')}</td>
+      <td>${bar('scalp_rsi')}</td>
+      <td>${bar('scalp_macd')}</td>
+      <td>${bar('scalp_volume')}</td>
+    </tr>`;
+  });
+
+  el.innerHTML = html + '</tbody></table>';
+}
+
+function renderScalpPositions(positions) {
+  const el = document.getElementById('scalp-positions-table');
+  if (!positions.length) { el.innerHTML = '<p class="empty-state p-4">No open scalp positions.</p>'; return; }
+  let html = `<table class="data-table"><thead><tr>
+    <th>Symbol</th><th>Side</th><th>Qty</th><th>Entry</th><th>Current</th><th>Unr. P&L</th><th>Stop</th><th>Target</th><th></th>
+  </tr></thead><tbody>`;
+  positions.forEach(p => {
+    const pnlCls = (p.unrealized_pnl || 0) >= 0 ? 'green' : 'red';
+    html += `<tr>
+      <td><a href="/symbol/${p.symbol}">${p.symbol}</a></td>
+      <td class="${p.side==='long'?'green':'red'}">${p.side.toUpperCase()}</td>
+      <td>${p.qty}</td>
+      <td>${money(p.avg_entry_price)}</td>
+      <td>${money(p.current_price)}</td>
+      <td class="${pnlCls}">${money((p.unrealized_pnl||0))}</td>
+      <td class="red">${p.stop_price ? money(p.stop_price) : '--'}</td>
+      <td class="green">${p.take_profit_price ? money(p.take_profit_price) : '--'}</td>
+      <td><button onclick="closePos('${p.symbol}')" class="btn btn-xs btn-red">Close</button></td>
+    </tr>`;
+  });
+  el.innerHTML = html + '</tbody></table>';
+}
+
+function renderScalpTrades(trades) {
+  const el = document.getElementById('scalp-trade-list');
+  document.getElementById('scalp-trade-count').textContent = trades.length;
+  if (!trades.length) { el.innerHTML = '<p class="empty-state p-4">No scalp trades yet.</p>'; return; }
+
+  const sorted = [...trades].sort((a,b) => new Date(b.closed_at)-new Date(a.closed_at));
+  let html = `<table class="data-table" style="font-size:.72rem">
+    <thead><tr><th>Symbol</th><th>Side</th><th>Entry</th><th>Exit</th><th>P&L</th><th>%</th><th>Hold</th><th>Exit Reason</th><th>Time</th></tr></thead><tbody>`;
+  sorted.forEach(t => {
+    const win = t.pnl >= 0;
+    const pnlCls = win ? 'green' : 'red';
+    const holdMs = new Date(t.closed_at) - new Date(t.opened_at);
+    const holdStr = holdMs < 60000
+      ? Math.floor(holdMs/1000) + 's'
+      : Math.floor(holdMs/60000) + 'm ' + Math.floor((holdMs%60000)/1000) + 's';
+    const reasonMap = {
+      scalp_reversed_bearish: '↩ Reversed Bear',
+      scalp_reversed_bullish: '↩ Reversed Bull',
+      scalp_exhausted: '⬇ Exhausted',
+      target_hit: icon('target') + 'Target',
+      stop_hit: icon('stop') + 'Stop',
+      eod_flatten: icon('bell') + 'EOD',
+    };
+    const reason = reasonMap[t.close_reason] || t.close_reason || '--';
+    html += `<tr>
+      <td><a href="/symbol/${t.symbol}">${t.symbol}</a></td>
+      <td class="${t.side==='long'?'green':'red'}">${t.side?.toUpperCase()}</td>
+      <td>${money(t.entry_price)}</td>
+      <td>${money(t.exit_price)}</td>
+      <td class="${pnlCls}" style="font-weight:600">${money(t.pnl, {signed: true})}</td>
+      <td class="${pnlCls}">${win?'+':''}${t.pnl_pct?.toFixed(2)||'--'}%</td>
+      <td style="color:var(--text-muted)">${holdStr}</td>
+      <td style="font-size:.68rem">${reason}</td>
+      <td style="color:var(--text-muted)">${new Date(t.closed_at).toLocaleTimeString()}</td>
+    </tr>`;
+  });
+  el.innerHTML = html + '</tbody></table>';
+}
+
+// ── SSE: scalp live feed ──────────────────────────────────────────────────────
+
+function _scalpFeedEntry(html) {
+  const el = document.getElementById('scalp-live-feed');
+  const placeholder = el.querySelector('.empty-state');
+  if (placeholder) el.innerHTML = '';
+  const row = document.createElement('div');
+  row.style.cssText = 'padding:.2rem 0;border-bottom:1px solid var(--border)';
+  row.innerHTML = html;
+  el.insertBefore(row, el.firstChild);
+  // Cap at 50 entries
+  while (el.children.length > 50) el.removeChild(el.lastChild);
+}
+
+const _origHandleSSE = window.handleSSEMessage;
+window.handleSSEMessage = function(msg) {
+  if (_origHandleSSE) _origHandleSSE(msg);
+  const t = new Date().toLocaleTimeString();
+  if (msg.type === 'scalp_trade') {
+    const d = msg.data || msg;
+    const cls = d.side === 'buy' ? 'color:var(--green)' : 'color:var(--red)';
+    _scalpFeedEntry(
+      `<span style="color:var(--text-muted)">${t}</span> ` +
+      `<strong style="${cls}">SCALP ${d.side?.toUpperCase()}</strong> ` +
+      `<strong>${d.symbol}</strong> ` +
+      `${d.qty?.toFixed(4)} @ <strong>${money(d.price)}</strong> ` +
+      `| score <strong>${d.score?.toFixed(0)}</strong> ` +
+      `| stop ${money(d.stop)} → target ${money(d.target)} ` +
+      `| wallet <span style="color:var(--blue)">$${d.bot_cash?.toFixed(0)}</span>`
+    );
+    if (document.getElementById('tab-scalp-content').style.display !== 'none') loadScalp();
+  }
+  if (msg.type === 'scalp_exit') {
+    const d = msg.data || msg;
+    const win = (d.pnl || 0) >= 0;
+    _scalpFeedEntry(
+      `<span style="color:var(--text-muted)">${t}</span> ` +
+      `<strong style="color:var(--text-muted)">SCALP EXIT</strong> ` +
+      `<strong>${d.symbol}</strong> ` +
+      `P&L <strong style="${win?'color:var(--green)':'color:var(--red)'}">${money(d.pnl, {signed: true})}</strong> ` +
+      `(${d.reason}) | wallet <span style="color:var(--blue)">$${d.bot_cash?.toFixed(0)}</span>`
+    );
+    if (document.getElementById('tab-scalp-content').style.display !== 'none') loadScalp();
+  }
+};
+
+// Auto-refresh scalp tab every 30s if active
+setInterval(() => {
+  if (document.getElementById('tab-scalp-content').style.display !== 'none') loadScalp();
+}, 30000);
+</script>
+{% endblock %}

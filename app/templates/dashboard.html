@@ -1,0 +1,426 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Stock Tracker{% endblock %}
+
+{% block content %}
+<!-- ── Top Status Bar ──────────────────────────────────────────────────────── -->
+<div class="top-status-bar">
+  <span class="tsb-time" id="tsb-time">--:--</span>
+  <span class="tsb-sep">|</span>
+  <span class="tsb-date" id="tsb-date">--</span>
+  <span class="tsb-sep">|</span>
+  <span class="tsb-wallet-label">Paper</span>
+  <span class="tsb-wallet-value skel" id="tsb-paper-equity"></span>
+  <span class="tsb-sep">|</span>
+  <span class="tsb-wallet-label">Live</span>
+  <span class="tsb-wallet-value skel" id="tsb-live-equity"></span>
+</div>
+
+<!-- Best Trade of Day Banner -->
+<div id="best-trade-banner" class="best-trade-banner hidden">
+  <div class="best-trade-inner">
+    <span class="best-trade-label"><i data-icon="star"></i>BEST TRADE OF DAY</span>
+    <span id="best-trade-symbol" class="best-trade-symbol">--</span>
+    <span id="best-trade-direction" class="best-trade-direction">--</span>
+    <span id="best-trade-score" class="best-trade-score">--/100</span>
+    <span id="best-trade-why" class="best-trade-why"></span>
+    <button id="view-best-trade" class="btn btn-sm btn-primary" onclick="window.location='/symbol/'+document.getElementById('best-trade-symbol').textContent">View →</button>
+  </div>
+</div>
+
+<!-- Kill Switch Warning -->
+{% if kill_switch %}
+<div class="alert-banner danger">
+  <i data-icon="stop"></i>KILL SWITCH IS ENGAGED — No new trades or signals will be acted on.
+  <button onclick="toggleKillSwitch(false)" class="btn btn-sm btn-light ml-2">Disengage</button>
+</div>
+{% endif %}
+
+<!-- ── Market Galaxy (3D) ─────────────────────────────────────────────────── -->
+<div class="panel galaxy-panel" id="galaxy-wrap">
+  <div class="galaxy-head">
+    <div class="galaxy-title">Market galaxy<b id="galaxy-count">Loading…</b></div>
+    <div class="galaxy-legend">
+      <span><i style="background:#2fd47e;box-shadow:0 0 8px #2fd47e"></i>Buy signal</span>
+      <span><i style="background:#ff5470;box-shadow:0 0 8px #ff5470"></i>Sell signal</span>
+      <span><i style="background:#4cc9ff"></i>Leaning long</span>
+      <span><i style="background:#a98bff"></i>Leaning short</span>
+      <span><i style="background:#ffc857;opacity:.6"></i>Trade threshold</span>
+    </div>
+  </div>
+  <canvas id="galaxy" aria-label="3D map of every watched stock: height is signal score, left-right is distance from VWAP, depth is change since the open, colour is the signal, size is relative volume"></canvas>
+  <div class="galaxy-tip" id="galaxy-tip"></div>
+  <div class="galaxy-axes"><span>↕ height = signal score · ↔ below / above VWAP · ⤢ depth = change since open · size = relative volume<br><span id="galaxy-scale"></span></span><span>drag to rotate · click a stock to open it</span></div>
+</div>
+
+<!-- Watchlist Cards Grid -->
+<div class="coverflow-wrap">
+  <button class="cf-nav cf-nav-left" onclick="cfScroll(-1)">&#8249;</button>
+  <div class="coverflow-track" id="coverflow-track">
+  {% for sym in symbols %}
+  <div class="symbol-card cf-card" id="card-{{ sym }}" data-symbol="{{ sym }}" data-index="{{ loop.index0 }}" onclick="cfCardClick(event,{{ loop.index0 }},'/symbol/{{ sym }}')">
+  <div class="card-tilt">
+
+    <!-- ── Prominent BUY / SELL / NEUTRAL status bar ── -->
+    <div class="card-status-bar neutral" id="status-bar-{{ sym }}">
+      <span class="status-action" id="status-action-{{ sym }}">NO TRADE</span>
+      <span class="status-score-chip" id="status-score-{{ sym }}">--/100</span>
+    </div>
+
+    <div class="card-body">
+      <div class="card-header">
+        <div class="card-symbol">
+          <a href="/symbol/{{ sym }}" class="symbol-link">{{ sym }}</a>
+        </div>
+        <div class="card-color-dot neutral" id="dot-{{ sym }}" style="display:none"></div>
+        <div class="score-ring" id="ring-{{ sym }}"><span id="ring-val-{{ sym }}">--</span></div>
+      </div>
+      <div><span class="card-price skel" id="price-{{ sym }}"></span><span class="card-change" id="change-{{ sym }}"></span></div>
+
+      <!-- ── Mini real-time sparkline chart ── -->
+      <div class="spark-wrap">
+        <canvas id="spark-{{ sym }}"></canvas>
+      </div>
+
+      <div class="card-signal-row">
+        <span class="signal-badge neutral" id="color-{{ sym }}">NEUTRAL</span>
+        <span class="score-pill" id="score-{{ sym }}">--</span>
+      </div>
+      <div class="card-label" id="label-{{ sym }}">NO TRADE</div>
+      <div class="card-vwap">
+        VWAP: <span id="vwap-{{ sym }}">--</span>
+        <span id="vwap-rel-{{ sym }}" class="vwap-rel"></span>
+      </div>
+      <div class="card-meta">
+        <span id="rvol-{{ sym }}" class="rvol-pill">RVOL --</span>
+        <span id="candle-{{ sym }}" class="candle-tag"></span>
+        <span class="whale-chip" id="whale-chip-{{ sym }}" title="Whale sentiment"></span>
+      </div>
+      <div class="card-thesis" id="thesis-{{ sym }}"></div>
+      <div class="card-footer">
+        <a href="/symbol/{{ sym }}" class="btn btn-xs btn-outline">Details</a>
+        <button class="btn btn-xs btn-green" onclick="quickOrder('{{ sym }}','buy')">Buy</button>
+        <button class="btn btn-xs btn-red" onclick="quickOrder('{{ sym }}','sell')">Short</button>
+      </div>
+    </div>
+  </div><!-- /card-tilt -->
+  </div>
+  {% endfor %}
+  </div><!-- /coverflow-track -->
+  <button class="cf-nav cf-nav-right" onclick="cfScroll(1)">&#8250;</button>
+</div><!-- /coverflow-wrap -->
+<div class="cf-dots" id="cf-dots"></div>
+
+<!-- ── Bot Wallet ──────────────────────────────────────────────────────────── -->
+<div class="bot-wallet-bar" id="bot-wallet-bar">
+  <div class="bw-left">
+    <span class="bw-icon"><i data-icon="bot"></i></span>
+    <span class="bw-title">Bot Wallet</span>
+    <span class="bw-auto-badge" id="bw-auto-badge">AUTO OFF</span>
+  </div>
+
+  <div class="bw-stats">
+    <div class="bw-stat">
+      <span class="bw-stat-label">Capital</span>
+      <span class="bw-stat-value skel" id="bw-capital"></span>
+    </div>
+    <div class="bw-stat">
+      <span class="bw-stat-label">Cash</span>
+      <span class="bw-stat-value skel" id="bw-cash"></span>
+    </div>
+    <div class="bw-stat">
+      <span class="bw-stat-label">Realized P&amp;L</span>
+      <span class="bw-stat-value skel" id="bw-realized"></span>
+    </div>
+    <div class="bw-stat">
+      <span class="bw-stat-label">Unrealized</span>
+      <span class="bw-stat-value skel" id="bw-unrealized"></span>
+    </div>
+    <div class="bw-stat">
+      <span class="bw-stat-label">Total Return</span>
+      <span class="bw-stat-value skel" id="bw-return"></span>
+    </div>
+    <div class="bw-stat">
+      <span class="bw-stat-label">Trades Today</span>
+      <span class="bw-stat-value skel" id="bw-trades"></span>
+    </div>
+  </div>
+
+  <!-- Live open position chip -->
+  <div id="bw-position" class="bw-position hidden"></div>
+
+  <a href="/settings" class="btn btn-xs btn-outline" style="flex-shrink:0"><i data-icon="settings"></i>Settings</a>
+</div>
+
+
+<!-- ── Floating dashboard panels canvas ──────────────────────────────────── -->
+<div id="dash-canvas" class="dash-canvas">
+
+  <!-- Trade Signals -->
+  <div class="fp-panel" id="dp-alerts">
+    <div class="fp-header fp-drag">
+      Trade Signals
+      <span style="font-size:.6rem;font-weight:400;color:var(--text-dim);margin-left:.4rem;text-transform:none;letter-spacing:0">POSSIBLE / IMMEDIATE only</span>
+    </div>
+    <div class="fp-body" id="alerts-list">
+      <p class="empty-state">No alerts yet.</p>
+    </div>
+    <div class="fp-resize-se"></div>
+  </div>
+
+  <!-- Open Positions -->
+  <div class="fp-panel" id="dp-positions">
+    <div class="fp-header fp-drag">Open Positions</div>
+    <div class="fp-body" id="positions-list">
+      <p class="empty-state">No open positions.</p>
+    </div>
+    <div class="fp-resize-se"></div>
+  </div>
+
+  <!-- Weekly Economic Calendar -->
+  <div class="fp-panel" id="dp-calendar">
+    <div class="fp-header fp-drag">
+      <i data-icon="calendar"></i>Weekly Economic Calendar
+      <span class="meta-item" id="cal-week-label" style="font-weight:400;text-transform:none;letter-spacing:0;margin-left:.5rem"></span>
+    </div>
+    <div class="fp-body weekly-cal-grid" id="weekly-cal-grid">
+      <div class="skel-lines"><span></span><span></span><span></span></div>
+    </div>
+    <div class="fp-resize-se"></div>
+  </div>
+
+  <!-- Most Anticipated Earnings -->
+  <div class="fp-panel" id="dp-earnings">
+    <div class="fp-header fp-drag"><i data-icon="coins"></i>Most Anticipated Earnings</div>
+    <div class="fp-body weekly-cal-grid" id="weekly-earnings-grid">
+      <div class="skel-lines"><span></span><span></span><span></span></div>
+    </div>
+    <div class="fp-resize-se"></div>
+  </div>
+
+  <!-- NAAIM -->
+  <div class="fp-panel" id="dp-naaim">
+    <div class="fp-header fp-drag">NAAIM Exposure Index</div>
+    <div class="fp-body" id="naaim-content">
+      <div class="skel-lines"><span></span><span></span><span></span></div>
+    </div>
+    <div class="fp-resize-se"></div>
+  </div>
+
+  <!-- AAII -->
+  <div class="fp-panel" id="dp-aaii">
+    <div class="fp-header fp-drag">AAII Investor Sentiment</div>
+    <div class="fp-body" id="aaii-content">
+      <div class="skel-lines"><span></span><span></span><span></span></div>
+    </div>
+    <div class="fp-resize-se"></div>
+  </div>
+
+  <!-- Treasury -->
+  <div class="fp-panel" id="dp-treasury">
+    <div class="fp-header fp-drag"><i data-icon="bank"></i>Treasury Yields &amp; Fed Funds Rate</div>
+    <div class="fp-body" id="treasury-content">
+      <div class="skel-lines"><span></span><span></span><span></span></div>
+    </div>
+    <div class="fp-resize-se"></div>
+  </div>
+
+</div><!-- /dash-canvas -->
+
+<!-- Economic Indicator Info Modal -->
+<div id="indicator-modal" class="modal hidden">
+  <div class="modal-box" style="max-width:560px;max-height:80vh;overflow-y:auto">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.5rem;margin-bottom:.75rem">
+      <div>
+        <div id="ind-full-name" style="font-size:1.05rem;font-weight:800;color:var(--text);line-height:1.3"></div>
+        <div id="ind-meta" style="font-size:.7rem;color:var(--text-dim);margin-top:.2rem"></div>
+      </div>
+      <button onclick="closeIndicatorModal()" class="btn btn-xs btn-outline" style="flex-shrink:0;margin-top:.1rem">✕ Close</button>
+    </div>
+
+    <div class="ind-section">
+      <div class="ind-section-label"><i data-icon="bars"></i>What It Measures</div>
+      <div id="ind-measures" class="ind-section-body"></div>
+    </div>
+
+    <div class="ind-section">
+      <div class="ind-section-label"><i data-icon="zap"></i>Why It Matters</div>
+      <div id="ind-matters" class="ind-section-body"></div>
+    </div>
+
+    <div class="ind-section">
+      <div class="ind-section-label"><i data-icon="chart"></i>Typical Market Reaction</div>
+      <div id="ind-reaction" class="ind-section-body"></div>
+    </div>
+
+    <div class="ind-section" id="ind-thresholds-wrap">
+      <div class="ind-section-label"><i data-icon="target"></i>Key Thresholds</div>
+      <div id="ind-thresholds" class="ind-section-body"></div>
+    </div>
+
+    <div class="ind-section" id="ind-related-wrap">
+      <div class="ind-section-label"><i data-icon="link"></i>Related Releases</div>
+      <div id="ind-related" class="ind-section-body"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Order Modal -->
+<div id="order-modal" class="modal hidden">
+  <div class="modal-box">
+    <h3 id="modal-title">Place Paper Order</h3>
+    <div class="form-row">
+      <label>Symbol</label>
+      <input id="modal-symbol" type="text" readonly class="input"/>
+    </div>
+    <div class="form-row">
+      <label>Side</label>
+      <select id="modal-side" class="input">
+        <option value="buy">Buy (Long)</option>
+        <option value="sell">Sell (Short)</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label>Quantity</label>
+      <input id="modal-qty" type="number" value="10" min="1" class="input"/>
+    </div>
+    <div class="form-row">
+      <label>Stop Price (optional)</label>
+      <input id="modal-stop" type="number" step="0.01" class="input" placeholder="0.00"/>
+    </div>
+    <div class="form-row">
+      <label>Target Price (optional)</label>
+      <input id="modal-target" type="number" step="0.01" class="input" placeholder="0.00"/>
+    </div>
+    <div class="modal-actions">
+      <button onclick="submitOrder()" class="btn btn-primary">Submit</button>
+      <button onclick="closeModal()" class="btn btn-outline">Cancel</button>
+    </div>
+    <div id="modal-error" class="error-msg hidden"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/dashboard.js?v={{ v | default('1') }}"></script>
+<script src="/static/js/galaxy.js?v={{ v | default('1') }}"></script>
+<script>
+// Inline clock — not cached, runs immediately after DOM is ready
+(function() {
+  function _tick() {
+    var now = new Date();
+    var t = document.getElementById('tsb-time');
+    var d = document.getElementById('tsb-date');
+    if (t) t.textContent = now.toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit', hour12:true});
+    if (d) d.textContent = now.toLocaleDateString('en-US', {month:'long', day:'numeric', year:'numeric'});
+  }
+  _tick();
+  setInterval(_tick, 1000);
+})();
+</script>
+
+<script>
+// ── Dashboard floating panels engine ──────────────────────────────────────────
+const DASH_STORAGE_KEY = 'dash_layout_v1';
+const DEFAULT_DASH_LAYOUT = {
+  'dp-alerts':    [0,    0,   520, 280],
+  'dp-positions': [532,  0,   440, 280],
+  'dp-calendar':  [0,    292, 980, 300],
+  'dp-earnings':  [0,    604, 980, 280],
+  'dp-naaim':     [0,    896, 480, 210],
+  'dp-aaii':      [492,  896, 488, 210],
+  'dp-treasury':  [0,    1118, 980, 160],
+};
+
+function saveDashLayout() {
+  var layout = {};
+  document.querySelectorAll('#dash-canvas .fp-panel').forEach(function(p) {
+    layout[p.id] = [parseInt(p.style.left)||0, parseInt(p.style.top)||0,
+                    parseInt(p.style.width)||0, parseInt(p.style.height)||0];
+  });
+  localStorage.setItem(DASH_STORAGE_KEY, JSON.stringify(layout));
+}
+
+function applyDashLayout(layout) {
+  var canvas = document.getElementById('dash-canvas');
+  var maxBottom = 600;
+  Object.entries(layout).forEach(function(entry) {
+    var id = entry[0], pos = entry[1];
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.style.left   = pos[0] + 'px';
+    el.style.top    = pos[1] + 'px';
+    el.style.width  = pos[2] + 'px';
+    el.style.height = pos[3] + 'px';
+    maxBottom = Math.max(maxBottom, pos[1] + pos[3] + 20);
+  });
+  if (canvas) canvas.style.height = maxBottom + 'px';
+}
+
+function loadDashLayout() {
+  try { var s = localStorage.getItem(DASH_STORAGE_KEY); if (s) return JSON.parse(s); } catch(e) {}
+  return DEFAULT_DASH_LAYOUT;
+}
+
+// Drag + resize engine for dashboard panels
+(function() {
+  var action = null;
+
+  function bringToFront(panel) {
+    var max = 0;
+    document.querySelectorAll('#dash-canvas .fp-panel').forEach(function(p) {
+      max = Math.max(max, parseInt(p.style.zIndex)||10);
+    });
+    panel.style.zIndex = max + 1;
+  }
+
+  document.querySelectorAll('#dash-canvas .fp-panel').forEach(function(panel) {
+    var header = panel.querySelector('.fp-drag');
+    if (header) {
+      header.addEventListener('mousedown', function(e) {
+        if (e.target.tagName==='BUTTON' || e.target.closest('button')) return;
+        bringToFront(panel);
+        action = { type:'drag', panel:panel, startX:e.clientX, startY:e.clientY,
+                   startL:parseInt(panel.style.left)||0, startT:parseInt(panel.style.top)||0 };
+        document.body.style.userSelect = 'none';
+        e.preventDefault();
+      });
+    }
+    var rh = panel.querySelector('.fp-resize-se');
+    if (rh) {
+      rh.addEventListener('mousedown', function(e) {
+        bringToFront(panel);
+        action = { type:'resize', panel:panel, startX:e.clientX, startY:e.clientY,
+                   startW:parseInt(panel.style.width)||panel.offsetWidth,
+                   startH:parseInt(panel.style.height)||panel.offsetHeight };
+        document.body.style.userSelect = 'none';
+        e.preventDefault(); e.stopPropagation();
+      });
+    }
+    panel.addEventListener('mousedown', function() { bringToFront(panel); });
+  });
+
+  document.addEventListener('mousemove', function(e) {
+    if (!action) return;
+    var dx = e.clientX - action.startX, dy = e.clientY - action.startY;
+    var canvas = document.getElementById('dash-canvas');
+    if (action.type === 'drag') {
+      var newL = Math.max(0, action.startL + dx), newT = Math.max(0, action.startT + dy);
+      action.panel.style.left = newL + 'px'; action.panel.style.top = newT + 'px';
+      var bottom = newT + action.panel.offsetHeight + 20;
+      if (canvas && bottom > parseInt(canvas.style.height||0)) canvas.style.height = bottom + 'px';
+    } else {
+      action.panel.style.width  = Math.max(200, action.startW + dx) + 'px';
+      action.panel.style.height = Math.max(100, action.startH + dy) + 'px';
+    }
+  });
+
+  document.addEventListener('mouseup', function() {
+    if (!action) return;
+    document.body.style.userSelect = '';
+    saveDashLayout(); action = null;
+  });
+})();
+
+applyDashLayout(loadDashLayout());
+</script>
+{% endblock %}

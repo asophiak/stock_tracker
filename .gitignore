@@ -1,0 +1,27 @@
+# Secrets — share .env privately, never commit it
+.env
+
+# Local environment
+venv/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.DS_Store
+
+# Runtime data (large / changes constantly)
+stock_tracker.db
+stock_tracker.db-*
+*.db
+logs/
+data/
+
+# ML working files (trained models in models/ml/ ARE committed)
+models/ml/archive/
+models/ml/candidates/
+models/ml/.retrain.lock
+
+# Local tooling / build output
+.claude/
+stock-tracker-share.zip
+stock-tracker-data.zip

@@ -1,0 +1,168 @@
+[
+  {
+    "run_id": "20261001T030622Z",
+    "started_at": "2026-10-01T03:06:22.795133+00:00",
+    "models": {
+      "filter_gbm": {
+        "promote": true,
+        "reason": "held-out test AUC 0.538 (\u2265 0.5 sanity gate)",
+        "challenger_test": {
+          "n": 72999,
+          "base_win_rate": 0.4410060411786463,
+          "base_avg_r": -0.03523498264756378,
+          "auc": 0.5379811305350055,
+          "auc_engine_score": 0.49014498993968453,
+          "brier": 0.2462853346793563,
+          "kept_frac": 0.1175769531089467,
+          "kept_win_rate": 0.48607712920890134,
+          "kept_avg_r": 0.003165190281786307,
+          "skipped_avg_r": -0.04035154816315947
+        }
+      },
+      "filter_nn": {
+        "promote": true,
+        "reason": "held-out test AUC 0.535 (\u2265 0.5 sanity gate)",
+        "challenger_test": {
+          "n": 72999,
+          "base_win_rate": 0.4410060411786463,
+          "base_avg_r": -0.03523498264756378,
+          "auc": 0.5346827397255403,
+          "auc_engine_score": 0.49014498993968453,
+          "brier": 0.24589198542106866,
+          "kept_frac": 0.22286606665844738,
+          "kept_win_rate": 0.4736615649394554,
+          "kept_avg_r": -0.021334727382631327,
+          "skipped_avg_r": -0.039221290648712846
+        }
+      },
+      "auto_nn": {
+        "promote": false,
+        "reason": "no fresh sessions to compare on"
+      }
+    },
+    "latest_session": "2026-09-29",
+    "status": "ok",
+    "finished_at": "2026-10-01T03:08:13.903173+00:00"
+  },
+  {
+    "run_id": "20261001T030836Z",
+    "started_at": "2026-10-01T03:08:36.774623+00:00",
+    "models": {
+      "filter_gbm": {
+        "promote": true,
+        "reason": "held-out test AUC 0.544 (\u2265 0.5 sanity gate)",
+        "challenger_test": {
+          "n": 73303,
+          "base_win_rate": 0.447812504263127,
+          "base_avg_r": -0.02763178209134989,
+          "auc": 0.5438209584964816,
+          "auc_engine_score": 0.49145517078906537,
+          "brier": 0.24635083518244472,
+          "kept_frac": 0.11254655334706629,
+          "kept_win_rate": 0.5025454545454545,
+          "kept_avg_r": 0.03242562251967413,
+          "skipped_avg_r": -0.035248242332091256
+        }
+      },
+      "filter_nn": {
+        "promote": true,
+        "reason": "held-out test AUC 0.542 (\u2265 0.5 sanity gate)",
+        "challenger_test": {
+          "n": 73303,
+          "base_win_rate": 0.447812504263127,
+          "base_avg_r": -0.02763178209134989,
+          "auc": 0.5415585723143129,
+          "auc_engine_score": 0.49145517078906537,
+          "brier": 0.24615246089400472,
+          "kept_frac": 0.21184671841534453,
+          "kept_win_rate": 0.4935926331379999,
+          "kept_avg_r": 0.0005700164821547942,
+          "skipped_avg_r": -0.035212107671160085
+        }
+      },
+      "auto_nn": {
+        "promote": true,
+        "reason": "top-10/day avg R on 1 fresh session(s): challenger +0.885 vs champion +0.506",
+        "fresh_sessions": [
+          "2026-09-30",
+          "2026-09-30"
+        ],
+        "champion": {
+          "top_k": {
+            "5": {
+              "avg_r": 0.4807663857936859,
+              "win_rate": 1.0,
+              "positive_days": 1.0
+            },
+            "10": {
+              "avg_r": 0.5056709051132202,
+              "win_rate": 0.7,
+              "positive_days": 1.0
+            },
+            "25": {
+              "avg_r": 0.4527179002761841,
+              "win_rate": 0.72,
+              "positive_days": 1.0
+            },
+            "100": {
+              "avg_r": 0.3426956832408905,
+              "win_rate": 0.64,
+              "positive_days": 1.0
+            }
+          },
+          "n": 4528,
+          "days": 1,
+          "auc_long": 0.4752422607945746,
+          "auc_short": 0.6333410313298166,
+          "base_avg_r": 0.005361668765544891,
+          "trades": 85,
+          "trades_per_day": 85.0,
+          "win_rate": 0.6470588235294118,
+          "avg_r": 0.3488338887691498,
+          "total_r": 29.650880813598633,
+          "positive_days": 1.0,
+          "long_share": 0.29411764705882354
+        },
+        "challenger": {
+          "top_k": {
+            "5": {
+              "avg_r": 0.9462997317314148,
+              "win_rate": 1.0,
+              "positive_days": 1.0
+            },
+            "10": {
+              "avg_r": 0.885184645652771,
+              "win_rate": 1.0,
+              "positive_days": 1.0
+            },
+            "25": {
+              "avg_r": 0.5681694149971008,
+              "win_rate": 0.8,
+              "positive_days": 1.0
+            },
+            "100": {
+              "avg_r": 0.42229771614074707,
+              "win_rate": 0.78,
+              "positive_days": 1.0
+            }
+          },
+          "n": 4528,
+          "days": 1,
+          "auc_long": 0.46162853940171755,
+          "auc_short": 0.6207866076267385,
+          "base_avg_r": 0.005361668765544891,
+          "trades": 18,
+          "trades_per_day": 18.0,
+          "win_rate": 0.8888888888888888,
+          "avg_r": 0.6700315475463867,
+          "total_r": 12.060567855834961,
+          "positive_days": 1.0,
+          "long_share": 0.0
+        }
+      }
+    },
+    "latest_session": "2026-09-30",
+    "status": "ok",
+    "finished_at": "2026-10-01T03:10:32.956949+00:00"
+  }
+]

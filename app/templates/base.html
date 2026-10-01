@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{% block title %}Stock Tracker{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap"/>
+  <link rel="stylesheet" href="/static/css/main.css?v={{ v | default('1') }}"/>
+  <link rel="stylesheet" href="/static/css/theme.css?v={{ v | default('1') }}"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <!-- TradingView Lightweight Charts — proper OHLC candlestick rendering -->
+  <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+</head>
+<body>
+  <canvas id="fx-bg" aria-hidden="true"></canvas>
+  <nav class="navbar">
+    <a href="/" class="nav-brand {% if request.url.path == '/' %}active{% endif %}" aria-label="Stock Tracker — dashboard"
+       {% if request.url.path == '/' %}aria-current="page"{% endif %}>
+      <span class="brand-icon">◆</span>
+      <span class="brand-name">Stock Tracker</span>
+    </a>
+    <div class="nav-links">
+      <a href="/journal" class="nav-link {% if request.url.path == '/journal' %}active{% endif %}">Journal</a>
+      <a href="/session-summary" class="nav-link {% if request.url.path == '/session-summary' %}active{% endif %}">Session</a>
+      <a href="/settings" class="nav-link {% if request.url.path == '/settings' %}active{% endif %}">Settings</a>
+      <a href="/whales" class="nav-link {% if request.url.path == '/whales' %}active{% endif %}"><i data-icon="whale"></i>Whales</a>
+      <a href="/diagnostics" class="nav-link {% if request.url.path == '/diagnostics' %}active{% endif %}"><i data-icon="microscope"></i>Diagnostics</a>
+      <a href="/ml" class="nav-link {% if request.url.path == '/ml' %}active{% endif %}"><i data-icon="brain"></i>Neural Net</a>
+    </div>
+    <div class="nav-status">
+      <span id="nav-session-phase" class="status-badge neutral">--</span>
+      <span id="nav-kill-switch" class="status-badge {% if kill_switch %}danger{% else %}ok{% endif %}">
+        {% if kill_switch %}KILL SWITCH ON{% else %}LIVE{% endif %}
+      </span>
+      <span id="nav-mode" class="status-badge info">{{ execution_mode | default('--') }}</span>
+    </div>
+  </nav>
+
+  <main class="main-content">
+    {% block content %}{% endblock %}
+  </main>
+
+  <script src="/static/js/ui.js?v={{ v | default('1') }}"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="/static/js/fx3d.js?v={{ v | default('1') }}"></script>
+  <script src="/static/js/charts.js?v={{ v | default('1') }}"></script>
+  {% block scripts %}{% endblock %}
+  <script>
+    // Global SSE connection for real-time updates
+    const evtSource = new EventSource('/api/events');
+    evtSource.onmessage = function(e) {
+      try {
+        const msg = JSON.parse(e.data);
+        if (window.handleSSEMessage) window.handleSSEMessage(msg);
+      } catch(err) {}
+    };
+    evtSource.onerror = function() {
+      document.getElementById('nav-session-phase').textContent = 'DISCONNECTED';
+    };
+
+    // Poll session status every 30s
+    async function pollStatus() {
+      try {
+        const r = await fetch('/api/status');
+        const d = await r.json();
+        const el = document.getElementById('nav-session-phase');
+        if (el) el.textContent = d.session.phase.toUpperCase().replace('_',' ');
+      } catch(e) {}
+    }
+    pollStatus();
+    setInterval(pollStatus, 30000);
+  </script>
+</body>
+</html>

@@ -1,0 +1,41 @@
+# ── Web framework ────────────────────────────────────────────────────────────
+fastapi==0.111.0
+uvicorn[standard]==0.29.0
+jinja2==3.1.4
+python-multipart==0.0.9
+httpx==0.27.0
+
+# ── Database ─────────────────────────────────────────────────────────────────
+sqlalchemy==2.0.30
+aiosqlite==0.20.0
+greenlet>=3.0.0
+
+# ── Settings ─────────────────────────────────────────────────────────────────
+pydantic==2.7.1
+pydantic-settings==2.2.1
+
+# ── Market data provider ──────────────────────────────────────────────────────
+alpaca-py==0.26.0
+
+# ── Scheduling ───────────────────────────────────────────────────────────────
+# (APScheduler optional — app uses asyncio tasks directly)
+# apscheduler==3.10.4
+
+# ── Testing ──────────────────────────────────────────────────────────────────
+pytest==8.2.0
+pytest-asyncio==0.23.6
+
+# ── Utilities ────────────────────────────────────────────────────────────────
+python-dateutil==2.9.0
+
+# ── Whale tracker ─────────────────────────────────────────────────────────────
+# Options chain analysis (yfinance) — used by app/providers/options_flow.py
+# SEC EDGAR 13F data uses httpx (already listed above)
+yfinance>=0.2.40
+websockets>=12.0,<14.0    # yfinance>=1.2 needs asyncio (12.0+); alpaca-py<=0.26 needs extra_headers (<14.0)
+
+# ── ML trade filter ───────────────────────────────────────────────────────────
+# app/ml + scripts/ml_train.py (numpy/pandas come in via yfinance)
+scikit-learn>=1.5
+joblib>=1.3
+torch>=2.2                # neural trade filter (app/ml/nn_model.py)

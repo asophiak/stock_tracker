@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}Neural Net{% endblock %}
+
+{% block content %}
+<style>
+  .ml-head { display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; }
+  .ml-head h1 span { font-size:.8rem; color:var(--text-muted); font-weight:400; }
+  .ml-badges { display:flex; gap:.4rem; flex-wrap:wrap; }
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:.75rem; }
+  .kpi { background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:.75rem 1rem; }
+  .kpi .k-label { font-size:.7rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:.04em; }
+  .kpi .k-value { font-size:1.45rem; font-weight:700; font-family:var(--font-mono); line-height:1.3; }
+  .kpi .k-sub { font-size:.72rem; color:var(--text-muted); }
+  .pos { color:var(--green); } .neg { color:var(--red); } .muted { color:var(--text-muted); }
+  .ml-grid { display:grid; grid-template-columns: 1.15fr 1fr; gap:.75rem; }
+  @media (max-width: 960px) { .ml-grid { grid-template-columns:1fr; } }
+  .arch svg { width:100%; height:auto; display:block; }
+  .arch .box { fill:var(--bg-card); stroke:var(--border); }
+  .arch .box.hl { stroke:var(--purple); }
+  .arch text { fill:var(--text); font-size:12px; font-family:var(--font); }
+  .arch .sub { fill:var(--text-muted); font-size:10.5px; }
+  .arch .edge { stroke:var(--text-dim); stroke-width:1.5; fill:none; marker-end:url(#arr); }
+  .prob-cell { min-width:150px; }
+  .pbar { position:relative; height:14px; background:var(--bg-card); border-radius:3px; overflow:hidden; }
+  .pbar .fill { position:absolute; inset:0 auto 0 0; border-radius:3px; }
+  .pbar .thr { position:absolute; top:-2px; bottom:-2px; width:2px; background:var(--yellow); }
+  .pbar .lbl { position:absolute; right:4px; top:-1px; font-size:.68rem; font-family:var(--font-mono); }
+  tr.hot td { background:rgba(188,140,255,.07); }
+  .note { font-size:.78rem; color:var(--text-muted); line-height:1.5; }
+  .verdict-yes { color:var(--green); font-weight:600; } .verdict-no { color:var(--text-muted); }
+  .chart-box { position:relative; height:260px; }
+  #holdout .note, #holdout + .note { padding:.25rem .75rem; }
+  #wf .note { padding:.35rem .75rem; }
+  .wf-grid { display:grid; grid-template-columns: 1.1fr 1fr; gap:.75rem; align-items:start; }
+  @media (max-width: 960px) { .wf-grid { grid-template-columns:1fr; } }
+  .scale-note { font-size:.68rem; color:var(--text-dim); }
+</style>
+
+<div class="page-header ml-head">
+  <h1><i data-icon="brain"></i>Neural Net <span>— autonomous trader · self-retraining</span></h1>
+  <div class="ml-badges">
+    <span id="b-bot" class="status-badge neutral">bot —</span>
+    <span id="b-model" class="status-badge neutral">model —</span>
+    <span id="b-retrain" class="status-badge neutral">retrain —</span>
+    <button class="btn btn-sm btn-outline" onclick="loadML()">↺ Refresh</button>
+  </div>
+</div>
+
+<!-- 3D network -->
+<div class="panel nn3d-panel" id="nn3d-wrap">
+  <canvas id="nn3d" aria-label="Interactive 3D view of the trading network: 60 one-minute bars feed a recurrent GRU layer, 18 market features feed a dense layer, both merge in a fusion head that outputs the probability of a profitable long and a profitable short. Click a layer to explore it."></canvas>
+  <div class="nn3d-tip" id="nn3d-tip"></div>
+  <div class="nn3d-toolbar">
+    <div class="nn3d-layers" aria-label="Jump to layer">
+      <button data-nn-layer="seq">Bars</button><button data-nn-layer="gru">GRU</button><button data-nn-layer="tab">Features</button>
+      <button data-nn-layer="mlp">MLP</button><button data-nn-layer="head">Head</button><button data-nn-layer="out">Outputs</button>
+    </div>
+    <div class="nn3d-zoom">
+      <button id="nn-zoom-in" aria-label="Zoom in">+</button><button id="nn-zoom-out" aria-label="Zoom out">−</button>
+      <button id="nn-reset" aria-label="Reset view">⟲</button>
+    </div>
+  </div>
+  <aside class="nn-info" id="nn-info" aria-live="polite">
+    <div class="nn-info-head">
+      <div><div class="nn-info-title" id="nn-info-title"></div><div class="nn-info-params" id="nn-info-params"></div></div>
+      <button class="nn-close" id="nn-info-close" aria-label="Close">✕</button>
+    </div>
+    <label class="nn-sym">Live data for <select id="nn-symbol"></select></label>
+    <div id="nn-info-body"></div>
+  </aside>
+  <div class="nn3d-caption"><span id="nn3d-reading">loading…</span><span>drag to rotate · scroll or pinch to zoom · click any layer to explore it</span></div>
+</div>
+
+<!-- KPIs -->
+<div class="kpis mt-3" id="kpis"></div>
+
+<div class="mt-3">
+  <!-- Bot race -->
+  <div class="panel">
+    <div class="panel-header">Bot race — cumulative P&amp;L, last 30 days</div>
+    <div class="chart-box"><canvas id="race"></canvas></div>
+    <div class="table-wrapper mt-2"><table class="data-table" id="bots"></table></div>
+  </div>
+</div>
+
+<!-- Live brain -->
+<div class="panel mt-3">
+  <div class="panel-header">
+    Live readings
+    <span class="muted" style="font-weight:400;font-size:.75rem;margin-left:.4rem">
+      what the network thinks of every symbol right now · yellow line = entry threshold · bars span 0.30–0.70 · refreshes every 15 s
+    </span>
+    <button class="btn btn-sm btn-outline" style="float:right" id="readings-toggle" onclick="toggleReadings()">show all</button>
+  </div>
+  <div class="table-wrapper"><table class="data-table" id="readings"></table></div>
+</div>
+
+<!-- Walk-forward -->
+<div class="panel mt-3">
+  <div class="panel-header">Walk-forward test — retrained every month, scored on the next, after trading costs
+    <span class="muted" style="font-weight:400;font-size:.75rem" id="wf-sub"></span></div>
+  <div id="wf"><div class="note" style="padding:.5rem .75rem">Not run yet — <code>scripts/ml_walkforward.py</code></div></div>
+</div>
+
+<div class="ml-grid mt-3">
+  <!-- Held-out report -->
+  <div class="panel">
+    <div class="panel-header">Held-out test — days the model never saw</div>
+    <div id="holdout"></div>
+  </div>
+  <!-- Self-training history -->
+  <div class="panel">
+    <div class="panel-header">Self-training log <span class="muted" style="font-weight:400;font-size:.75rem">champion vs challenger, nightly</span></div>
+    <div class="table-wrapper"><table class="data-table" id="history"></table></div>
+  </div>
+</div>
+
+<!-- NN trades -->
+<div class="panel mt-3">
+  <div class="panel-header">Neural-net trades</div>
+  <div class="table-wrapper"><table class="data-table" id="nn-open"></table></div>
+  <div class="table-wrapper mt-2"><table class="data-table" id="nn-trades"></table></div>
+</div>
+
+<!-- Filter -->
+<div class="panel mt-3">
+  <div class="panel-header">Trade filter (scores the rule bots' candidates) <span class="muted" style="font-weight:400;font-size:.75rem" id="filter-mode"></span></div>
+  <div class="table-wrapper"><table class="data-table" id="filter"></table></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/ml.js?v={{ v }}"></script>
+<script src="/static/js/nn3d.js?v={{ v }}"></script>
+{% endblock %}

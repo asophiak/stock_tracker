@@ -1,0 +1,74 @@
+{
+  "kind": "auto",
+  "trained_at": "2026-10-01T03:10:30.955979+00:00",
+  "features": [
+    "minutes_since_open",
+    "atr_pct",
+    "stop_atr",
+    "ret_1_atr",
+    "ret_5_atr",
+    "ret_15_atr",
+    "ret_30_atr",
+    "vwap_dist_atr",
+    "rsi7_signed",
+    "rsi14_signed",
+    "ema9_21_atr",
+    "vol_ratio_1_30",
+    "vol_ratio_5_30",
+    "range_pos",
+    "session_range_atr",
+    "room_atr",
+    "last_body_atr",
+    "bar_trend_10"
+  ],
+  "seq_len": 60,
+  "threshold": 0.525,
+  "epochs": 3,
+  "n_samples": 323683,
+  "sessions": [
+    "2026-06-09",
+    "2026-09-30"
+  ],
+  "test_sessions": [
+    "2026-09-03",
+    "2026-09-30"
+  ],
+  "test_metrics": {
+    "all": {
+      "n": 78967,
+      "days": 19,
+      "auc_long": 0.5292930560365199,
+      "auc_short": 0.5419834978279483,
+      "base_avg_r": 0.0015059657162055373,
+      "trades": 334,
+      "trades_per_day": 17.57894736842105,
+      "win_rate": 0.5119760479041916,
+      "avg_r": 0.05147748440504074,
+      "total_r": 17.193479537963867,
+      "positive_days": 0.5263157894736842,
+      "long_share": 0.04790419161676647,
+      "top_k": {
+        "5": {
+          "avg_r": 0.02312861941754818,
+          "win_rate": 0.49473684210526314,
+          "positive_days": 0.42105263157894735
+        },
+        "10": {
+          "avg_r": 0.03961450606584549,
+          "win_rate": 0.5105263157894737,
+          "positive_days": 0.5263157894736842
+        },
+        "25": {
+          "avg_r": -0.005591936409473419,
+          "win_rate": 0.4694736842105263,
+          "positive_days": 0.42105263157894735
+        },
+        "100": {
+          "avg_r": 0.011089920997619629,
+          "win_rate": 0.47947368421052633,
+          "positive_days": 0.42105263157894735
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Strategy Diagnostics{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Strategy Diagnostics
+    <span style="font-size:.8rem;color:var(--text-muted);font-weight:400">— Edge Analysis</span>
+  </h1>
+  <div class="header-actions">
+    <button class="btn btn-sm btn-outline" onclick="loadAll()">↺ Refresh</button>
+  </div>
+</div>
+
+<!-- ── Outlier banner ── -->
+<div id="outlier-banner" class="alert alert-warning" style="display:none">
+  <i data-icon="warn"></i><span id="outlier-msg"></span>
+</div>
+
+<!-- ── Clean Data Monitor ── -->
+<div class="panel mt-3">
+  <div class="panel-header">
+    Clean Data Monitor
+    <span style="font-size:.72rem;color:var(--text-muted);font-weight:400;margin-left:.4rem">
+      (Phase 4C — separates pre-4B historical data from post-4B valid-thesis trades)
+    </span>
+  </div>
+  <div id="clean-data-content" class="mt-2">
+    <div style="color:var(--text-muted);font-size:.8rem">Loading…</div>
+  </div>
+</div>
+
+<!-- ── Equity curves ── -->
+<div class="panel mt-3">
+  <div class="panel-header">
+    Cumulative Equity Curve
+    <span style="font-size:.75rem;color:var(--text-muted);font-weight:400;margin-left:.5rem">
+      All trades vs intraday-only (≤6.5 h hold, excludes overnight gap carries)
+    </span>
+  </div>
+  <div style="position:relative;height:280px">
+    <canvas id="equity-chart"></canvas>
+  </div>
+  <div id="equity-summary" class="diag-stat-row mt-2"></div>
+</div>
+
+<!-- ── Score buckets ── -->
+<div class="two-col-grid mt-3">
+  <div class="panel">
+    <div class="panel-header">Performance by Entry Score Bucket</div>
+    <div id="score-bucket-table"></div>
+  </div>
+  <div class="panel">
+    <div class="panel-header">Win Rate &amp; P&amp;L by Score</div>
+    <div style="position:relative;height:220px">
+      <canvas id="score-chart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- ── Time buckets ── -->
+<div class="two-col-grid mt-3">
+  <div class="panel">
+    <div class="panel-header">Performance by Time of Day</div>
+    <div id="time-bucket-table"></div>
+  </div>
+  <div class="panel">
+    <div class="panel-header">P&amp;L by Session Phase</div>
+    <div style="position:relative;height:220px">
+      <canvas id="time-chart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- ── Component accuracy ── -->
+<div class="panel mt-3">
+  <div class="panel-header">
+    Component Directional Accuracy by Market Phase
+    <span style="font-size:.72rem;color:var(--text-muted);font-weight:400;margin-left:.4rem">
+      (50% = random, &lt;50% = harmful)
+    </span>
+  </div>
+  <div id="component-accuracy-table"></div>
+</div>
+
+<!-- ── Thesis coverage ── -->
+<div class="panel mt-3">
+  <div class="panel-header">
+    Trade Thesis Coverage
+    <span style="font-size:.72rem;color:var(--text-muted);font-weight:400;margin-left:.4rem">
+      (Phase 4B gate — every future entry requires a valid stop <em>and</em> take-profit)
+    </span>
+  </div>
+  <div id="thesis-coverage-table" class="mt-2"></div>
+</div>
+
+<!-- ── Exit experiments ── -->
+<div class="panel mt-3">
+  <div class="panel-header">
+    Exit Rule Experiments
+    <span style="font-size:.72rem;color:var(--text-muted);font-weight:400;margin-left:.4rem">
+      (ranked by intraday P&L — simulation only, no code changes applied)
+    </span>
+  </div>
+  <div id="experiments-note" class="alert alert-warning mt-2" style="font-size:.78rem">
+    <i data-icon="warn"></i>Conservative estimate: "held" trades assume stop_price is eventually hit.
+    Variant 8 (TP priority) is optimistic: assumes TP is hit.
+    Variants 3 &amp; 4 (N-bar confirmation) = Baseline due to sustained 44-min average holds.
+  </div>
+  <div id="experiments-table" class="mt-2"></div>
+  <div id="experiments-chart-wrap" style="position:relative;height:220px;margin-top:1rem">
+    <canvas id="experiments-chart"></canvas>
+  </div>
+</div>
+
+<!-- ── Exit analysis ── -->
+<div class="two-col-grid mt-3">
+  <div class="panel">
+    <div class="panel-header">P&amp;L by Exit Reason</div>
+    <div id="exit-table"></div>
+  </div>
+  <div class="panel">
+    <div class="panel-header">Avg Hold Time by Exit Reason (minutes)</div>
+    <div style="position:relative;height:220px">
+      <canvas id="exit-hold-chart"></canvas>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/diagnostics.js?v={{ v | default('1') }}"></script>
+{% endblock %}

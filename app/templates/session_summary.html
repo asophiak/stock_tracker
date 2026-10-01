@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Session Summary — Stock Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Session Summary</h1>
+  <div class="header-meta" id="summary-date"></div>
+</div>
+
+<!-- Key stats -->
+<div class="stats-row" id="summary-stats">
+  <div class="stat-card"><div class="stat-value" id="s-signals">--</div><div class="stat-label">Total Signals</div></div>
+  <div class="stat-card"><div class="stat-value" id="s-trades">--</div><div class="stat-label">Trades</div></div>
+  <div class="stat-card"><div class="stat-value green" id="s-winners">--</div><div class="stat-label">Winners</div></div>
+  <div class="stat-card"><div class="stat-value red" id="s-losers">--</div><div class="stat-label">Losers</div></div>
+  <div class="stat-card"><div class="stat-value" id="s-pnl">--</div><div class="stat-label">Gross P&L</div></div>
+</div>
+
+<!-- Best Trade of Day -->
+<div class="panel mt-4" id="best-trade-panel">
+  <div class="panel-header"><i data-icon="star"></i>Best Trade of Day</div>
+  <div id="best-trade-content">
+    <p class="empty-state">No best trade identified yet.</p>
+  </div>
+</div>
+
+<!-- Session Narrative -->
+<div class="panel mt-4">
+  <div class="panel-header">Session Notes</div>
+  <div id="session-notes" class="session-notes">
+    <p class="empty-state">No notes.</p>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadSummary() {
+  let d;
+  try {
+    const r = await fetch('/api/session-summary/today');
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    d = await r.json();
+  } catch (e) {
+    document.getElementById('session-notes').innerHTML =
+      '<p class="empty-state" style="color:var(--red)">Failed to load session data. Is the server running?</p>';
+    return;
+  }
+
+  document.getElementById('summary-date').textContent = d.session_date || '';
+  document.getElementById('s-signals').textContent = d.total_signals ?? '--';
+  document.getElementById('s-trades').textContent   = d.trades_taken  ?? '--';
+  document.getElementById('s-winners').textContent  = d.winners       ?? '--';
+  document.getElementById('s-losers').textContent   = d.losers        ?? '--';
+
+  const pnl = d.gross_pnl ?? 0;
+  const pnlEl = document.getElementById('s-pnl');
+  pnlEl.textContent = money(pnl);
+  pnlEl.className = 'stat-value ' + (pnl >= 0 ? 'green' : 'red');
+
+  if (d.best_trade_symbol) {
+    document.getElementById('best-trade-content').innerHTML = `
+      <div class="thesis-block">
+        <div class="thesis-row"><span class="thesis-lbl">Symbol</span><span class="thesis-val symbol-link"><a href="/symbol/${d.best_trade_symbol}">${d.best_trade_symbol}</a></span></div>
+        <div class="thesis-row"><span class="thesis-lbl">Direction</span><span class="thesis-val ${d.best_trade_direction === 'long' ? 'green' : 'red'}">${(d.best_trade_direction || '').toUpperCase()}</span></div>
+        <div class="thesis-row"><span class="thesis-lbl">Score</span><span class="thesis-val">${d.best_trade_score?.toFixed(1)}/100</span></div>
+        ${d.best_trade_thesis ? `<div class="thesis-row"><span class="thesis-lbl">Why</span><span class="thesis-val">${d.best_trade_thesis}</span></div>` : ''}
+      </div>`;
+  }
+
+  // Build session notes from available data
+  document.getElementById('session-notes').innerHTML = _buildNotes(d);
+}
+
+function _buildNotes(d) {
+  const trades = d.trades_taken ?? 0;
+  if (trades === 0) {
+    return '<p class="empty-state">No trades taken this session.</p>';
+  }
+
+  const pnl      = d.gross_pnl ?? 0;
+  const winners  = d.winners ?? 0;
+  const losers   = d.losers  ?? 0;
+  const winRate  = trades > 0 ? Math.round(winners / trades * 100) : 0;
+  const dayResult = pnl >= 0 ? 'green' : 'red';
+
+  let notes = `<div class="session-note-line">
+    <strong>${trades}</strong> trade${trades !== 1 ? 's' : ''} taken —
+    <span class="green">${winners}W</span> / <span class="red">${losers}L</span>
+    (${winRate}% win rate).
+    Day P&amp;L: <span class="${dayResult}"><strong>${money(pnl)}</strong></span>.
+  </div>`;
+
+  if (d.best_trade_symbol) {
+    const dir = (d.best_trade_direction || '').toUpperCase();
+    const score = d.best_trade_score != null ? d.best_trade_score.toFixed(1) : '--';
+    notes += `<div class="session-note-line">
+      Best trade: <a href="/symbol/${d.best_trade_symbol}"><strong>${d.best_trade_symbol}</strong></a>
+      ${dir} (signal score ${score}/100).
+      ${d.best_trade_thesis ? `<em>${d.best_trade_thesis}</em>` : ''}
+    </div>`;
+  }
+
+  if (winRate >= 60) {
+    notes += `<div class="session-note-line" style="color:var(--green)">Strong session — signals were well-aligned today.</div>`;
+  } else if (winRate < 40 && trades >= 3) {
+    notes += `<div class="session-note-line" style="color:var(--red)">Tough session — review entries in the Trade Journal for setup quality.</div>`;
+  }
+
+  return notes;
+}
+
+loadSummary();
+</script>
+{% endblock %}

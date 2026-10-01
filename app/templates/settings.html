@@ -1,0 +1,426 @@
+{% extends "base.html" %}
+{% block title %}Settings — Stock Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Settings</h1>
+</div>
+
+<div class="settings-grid">
+
+  <!-- Auto Trader -->
+  <div class="panel settings-panel" style="border-color: var(--green);">
+    <div class="panel-header" style="color:var(--green)">Auto Trader (IQ-180 Bot)</div>
+
+    <!-- Capital deposit -->
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">Trading Capital ($)</div>
+        <div class="setting-desc">The bot sizes every trade to risk 1% of this amount. Change it to match your actual deposit.</div>
+      </div>
+      <div style="display:flex;gap:.4rem;align-items:center">
+        <input id="capital-input" type="number" min="100" step="100"
+               value="{{ settings.DEFAULT_CAPITAL }}"
+               class="input input-sm" style="width:110px"/>
+        <button onclick="setCapital()" class="btn btn-sm btn-green">Set</button>
+      </div>
+    </div>
+    <div id="capital-status" class="status-msg mt-2"></div>
+
+    <!-- Max trades per day -->
+    <div class="setting-row mt-2">
+      <div>
+        <div class="setting-label">Max Trades / Day</div>
+        <div class="setting-desc">Bot will stop entering new positions after this many fills today. Set to 0 for unlimited.</div>
+      </div>
+      <div style="display:flex;gap:.4rem;align-items:center">
+        <input id="max-trades-input" type="number" min="0" step="1"
+               value="{{ settings.MAX_TRADES_PER_DAY }}"
+               class="input input-sm" style="width:70px"/>
+        <button onclick="setMaxTrades()" class="btn btn-sm btn-outline">Set</button>
+      </div>
+    </div>
+
+    <!-- Auto-execute toggle -->
+    <div class="setting-row mt-2">
+      <div>
+        <div class="setting-label">Auto-Execute Trades</div>
+        <div class="setting-desc">When ON, the bot places paper orders automatically when a signal scores ≥ 85 (IMMEDIATE TRADE). Kill switch always overrides.</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="auto-exec-toggle"
+               {% if settings.AUTO_PAPER_EXECUTION %}checked{% endif %}
+               onchange="setAutoExec(this.checked)"/>
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+    <div id="auto-exec-status" class="status-msg mt-2"></div>
+  </div>
+
+  <!-- Kill Switch -->
+  <div class="panel settings-panel">
+    <div class="panel-header danger-header">Kill Switch</div>
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">Kill Switch</div>
+        <div class="setting-desc">Immediately disables all new signal actions and order attempts.</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="kill-switch-toggle" {% if kill_switch %}checked{% endif %} onchange="setKillSwitch(this.checked)"/>
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+    <div id="kill-switch-status" class="status-msg {% if kill_switch %}danger{% endif %}">
+      {% if kill_switch %}KILL SWITCH ENGAGED{% else %}Kill switch is disengaged.{% endif %}
+    </div>
+  </div>
+
+  <!-- ── LIVE TRADING SETUP ── -->
+  <div class="panel settings-panel live-trading-panel" id="live-trading-panel" style="border-color:#f85149;grid-column:1/-1">
+    <div class="panel-header" style="color:#f85149">
+      <i data-icon="zap"></i>Live Trading — Real Money
+      <span id="live-mode-badge" class="status-badge" style="margin-left:.5rem;float:right">
+        {% if execution_mode == 'live' %}LIVE ACTIVE{% else %}PAPER / INACTIVE{% endif %}
+      </span>
+    </div>
+
+    <div class="live-warning">
+      <i data-icon="warn"></i><strong>Real money will be spent.</strong> The bot will automatically enter and exit positions using your Alpaca funded account. Set a kill switch before enabling. Ensure you understand the risks.
+    </div>
+
+    <!-- Step 1: Get keys -->
+    <div class="setting-row mt-3">
+      <div style="flex:1">
+        <div class="setting-label">Step 1 — Get your Alpaca API keys</div>
+        <div class="setting-desc">
+          Sign up at <strong>alpaca.markets</strong> → fund your account → go to
+          <em>API Keys</em> → generate a <strong>Live</strong> key (not paper).
+          Paste them below.
+        </div>
+      </div>
+    </div>
+
+    <div class="live-keys-form">
+      <div class="live-key-row">
+        <label class="setting-label" style="min-width:100px">API Key</label>
+        <input id="live-api-key" type="text" class="input" placeholder="PKXXXXXXXXXXXXXXXXXXXXXX"
+               value="{{ 'Set ✓' if settings.ALPACA_API_KEY else '' }}"
+               autocomplete="off" spellcheck="false" style="font-family:var(--font-mono);flex:1"/>
+      </div>
+      <div class="live-key-row mt-2">
+        <label class="setting-label" style="min-width:100px">API Secret</label>
+        <input id="live-api-secret" type="password" class="input" placeholder="••••••••••••••••••••••••••••••••"
+               autocomplete="new-password" spellcheck="false" style="font-family:var(--font-mono);flex:1"/>
+      </div>
+
+      <div style="display:flex;gap:.75rem;align-items:center;margin-top:.75rem;flex-wrap:wrap">
+        <button onclick="saveLiveKeys(true)"  class="btn btn-red" style="min-width:140px">
+          <i data-icon="zap"></i>Connect Live Account
+        </button>
+        <button onclick="saveLiveKeys(false)" class="btn btn-outline" style="min-width:160px">
+          Connect Paper Account
+        </button>
+        <span id="live-keys-status" class="status-msg" style="flex:1"></span>
+      </div>
+    </div>
+
+    <!-- Step 2: Account balance -->
+    <div class="setting-row mt-3" style="border-top:1px solid var(--border);padding-top:.75rem">
+      <div style="flex:1">
+        <div class="setting-label">Step 2 — Confirm account connection</div>
+        <div class="setting-desc">After saving keys, click below to verify the connection and see your live balance.</div>
+      </div>
+      <button onclick="loadAccountBalance()" class="btn btn-outline btn-sm">Check Balance</button>
+    </div>
+
+    <div id="account-balance-panel" class="account-balance-panel hidden">
+      <div class="acct-stat-row">
+        <div class="acct-stat"><span class="acct-label">Equity</span><span class="acct-val green" id="acct-equity">--</span></div>
+        <div class="acct-stat"><span class="acct-label">Cash</span><span class="acct-val" id="acct-cash">--</span></div>
+        <div class="acct-stat"><span class="acct-label">Buying Power</span><span class="acct-val" id="acct-bp">--</span></div>
+        <div class="acct-stat"><span class="acct-label">Day Trade Count</span><span class="acct-val" id="acct-dtc">--</span></div>
+        <div class="acct-stat"><span class="acct-label">Mode</span><span class="acct-val" id="acct-mode">--</span></div>
+      </div>
+    </div>
+
+    <!-- Step 3: Enable execution mode -->
+    <div class="setting-row mt-3" style="border-top:1px solid var(--border);padding-top:.75rem">
+      <div>
+        <div class="setting-label">Step 3 — Execution Mode</div>
+        <div class="setting-desc">
+          <strong>paper_local</strong> = safe simulation only (no Alpaca) •
+          <strong>paper_alpaca</strong> = Alpaca paper account •
+          <strong>live</strong> = real money (requires saved keys + restart)
+        </div>
+      </div>
+      <select id="exec-mode-select" class="input" onchange="setExecMode(this.value)" style="min-width:160px">
+        <option value="disabled"     {% if execution_mode == 'disabled' %}selected{% endif %}>Disabled</option>
+        <option value="paper_local"  {% if execution_mode == 'paper_local' %}selected{% endif %}>Paper (Local)</option>
+        <option value="paper_alpaca" {% if execution_mode == 'paper_alpaca' %}selected{% endif %}>Paper (Alpaca)</option>
+        <option value="live"         {% if execution_mode == 'live' %}selected{% endif %} style="color:#f85149;font-weight:700">LIVE (Real Money)</option>
+      </select>
+    </div>
+    <div id="exec-mode-status" class="status-msg mt-2"></div>
+  </div>
+
+  <!-- Watchlist -->
+  <div class="panel settings-panel">
+    <div class="panel-header">Watchlist</div>
+    <div id="watchlist-symbols" class="symbol-tag-list"></div>
+    <div class="setting-row mt-3">
+      <input id="add-symbol-input" type="text" class="input" placeholder="Add symbol (e.g. AAPL)" maxlength="10" style="text-transform:uppercase"/>
+      <button onclick="addSymbol()" class="btn btn-primary btn-sm ml-2">Add</button>
+    </div>
+    <div id="watchlist-msg" class="status-msg mt-2"></div>
+  </div>
+
+  <!-- Signal Thresholds -->
+  <div class="panel settings-panel">
+    <div class="panel-header">Signal Thresholds</div>
+    <div class="setting-row">
+      <span class="setting-label">Flash threshold (IMMEDIATE TRADE)</span>
+      <span class="setting-value">{{ settings.SIGNAL_SCORE_FLASH_THRESHOLD }}</span>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Trade threshold (POSSIBLE TRADE)</span>
+      <span class="setting-value">{{ settings.SIGNAL_SCORE_TRADE_THRESHOLD }}</span>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Watch threshold (WATCH)</span>
+      <span class="setting-value">{{ settings.SIGNAL_SCORE_WATCH_THRESHOLD }}</span>
+    </div>
+    <p class="setting-desc">Adjust these in .env and restart to change.</p>
+  </div>
+
+  <!-- Scoring Weights -->
+  <div class="panel settings-panel">
+    <div class="panel-header">Scoring Weights</div>
+    <div class="setting-row"><span class="setting-label">Technical Trend</span><span class="setting-value">{{ settings.WEIGHT_TECHNICAL_TREND }}</span></div>
+    <div class="setting-row"><span class="setting-label">Candlestick</span><span class="setting-value">{{ settings.WEIGHT_CANDLESTICK }}</span></div>
+    <div class="setting-row"><span class="setting-label">Volume / RVOL</span><span class="setting-value">{{ settings.WEIGHT_VOLUME }}</span></div>
+    <div class="setting-row"><span class="setting-label">VWAP / Opening Range</span><span class="setting-value">{{ settings.WEIGHT_VWAP }}</span></div>
+    <div class="setting-row"><span class="setting-label">Market Regime</span><span class="setting-value">{{ settings.WEIGHT_MARKET_REGIME }}</span></div>
+    <div class="setting-row"><span class="setting-label">News Alignment</span><span class="setting-value">{{ settings.WEIGHT_NEWS }}</span></div>
+    <p class="setting-desc">Change weights in .env (WEIGHT_* variables) and restart.</p>
+  </div>
+
+  <!-- Risk Settings -->
+  <div class="panel settings-panel">
+    <div class="panel-header">Risk Management</div>
+    <div class="setting-row"><span class="setting-label">Max Trades / Day</span><span class="setting-value">{{ settings.MAX_TRADES_PER_DAY }}</span></div>
+    <div class="setting-row"><span class="setting-label">Daily Loss Limit</span><span class="setting-value">${{ settings.DAILY_LOSS_LIMIT }}</span></div>
+    <div class="setting-row"><span class="setting-label">Per-Trade Risk %</span><span class="setting-value">{{ settings.PER_TRADE_RISK_PCT }}%</span></div>
+    <div class="setting-row"><span class="setting-label">Default Capital</span><span class="setting-value">${{ settings.DEFAULT_CAPITAL }}</span></div>
+    <div class="setting-row"><span class="setting-label">Symbol Cooldown</span><span class="setting-value">{{ settings.SYMBOL_COOLDOWN_MINUTES }} min</span></div>
+    <div class="setting-row"><span class="setting-label">EOD Flatten</span><span class="setting-value">{{ settings.EOD_FLATTEN_MINUTES }} min before close</span></div>
+    <p class="setting-desc">Change risk settings in .env and restart.</p>
+  </div>
+
+  <!-- Alert Integrations -->
+  <div class="panel settings-panel">
+    <div class="panel-header">Alert Integrations</div>
+    <div class="setting-row">
+      <span class="setting-label">Telegram</span>
+      <span class="status-badge {% if settings.TELEGRAM_BOT_TOKEN and settings.TELEGRAM_CHAT_ID %}ok{% else %}neutral{% endif %}">
+        {% if settings.TELEGRAM_BOT_TOKEN and settings.TELEGRAM_CHAT_ID %}Configured{% else %}Not configured{% endif %}
+      </span>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Discord</span>
+      <span class="status-badge {% if settings.DISCORD_WEBHOOK_URL %}ok{% else %}neutral{% endif %}">
+        {% if settings.DISCORD_WEBHOOK_URL %}Configured{% else %}Not configured{% endif %}
+      </span>
+    </div>
+    <p class="setting-desc">Set TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, and DISCORD_WEBHOOK_URL in .env.</p>
+  </div>
+
+  <!-- Provider Status -->
+  <div class="panel settings-panel">
+    <div class="panel-header">Provider</div>
+    <div class="setting-row">
+      <span class="setting-label">Alpaca API Key</span>
+      <span class="status-badge {% if settings.ALPACA_API_KEY %}ok{% else %}neutral{% endif %}">
+        {% if settings.ALPACA_API_KEY %}Set{% else %}Not set — using mock data{% endif %}
+      </span>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Data Feed</span>
+      <span class="setting-value">{{ settings.ALPACA_DATA_FEED }}</span>
+    </div>
+    <p class="setting-desc">Set ALPACA_API_KEY and ALPACA_API_SECRET in .env to enable live data.</p>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function setKillSwitch(enabled) {
+  const r = await fetch('/api/kill-switch', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({enabled, reason: 'Dashboard toggle'})
+  });
+  const d = await r.json();
+  const el = document.getElementById('kill-switch-status');
+  el.textContent = enabled ? 'KILL SWITCH ENGAGED' : 'Kill switch is disengaged.';
+  el.className = 'status-msg ' + (enabled ? 'danger' : '');
+}
+
+async function saveLiveKeys(isLive) {
+  const key    = document.getElementById('live-api-key').value.trim();
+  const secret = document.getElementById('live-api-secret').value.trim();
+  const status = document.getElementById('live-keys-status');
+
+  if (!key || key === 'Set ✓') { status.style.color='var(--red)'; status.textContent = 'Enter your API key.'; return; }
+  if (!secret) { status.style.color='var(--red)'; status.textContent = 'Enter your API secret.'; return; }
+
+  status.style.color = 'var(--text-muted)'; status.textContent = 'Saving…';
+
+  const r = await fetch('/api/settings/live-keys', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ api_key: key, api_secret: secret, live: isLive })
+  });
+  const d = await r.json();
+
+  if (!r.ok) {
+    status.style.color = 'var(--red)';
+    status.textContent = d.detail || 'Error saving keys.';
+    return;
+  }
+
+  status.style.color = 'var(--green)';
+  status.textContent = '✓ Saved! ' + (d.message || '');
+  document.getElementById('live-api-key').value    = 'Set ✓';
+  document.getElementById('live-api-secret').value = '';
+
+  const badge = document.getElementById('live-mode-badge');
+  if (badge) badge.textContent = isLive ? 'LIVE ACTIVE' : 'PAPER';
+
+  // Auto-verify connection
+  setTimeout(loadAccountBalance, 500);
+}
+
+async function loadAccountBalance() {
+  const panel = document.getElementById('account-balance-panel');
+  try {
+    const r = await fetch('/api/account');
+    if (!r.ok) {
+      panel?.classList.remove('hidden');
+      document.getElementById('acct-equity').textContent = 'Connection failed';
+      return;
+    }
+    const d = await r.json();
+    panel?.classList.remove('hidden');
+    const fmt = v => v != null ? '$' + parseFloat(v).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) : '--';
+    document.getElementById('acct-equity').textContent = fmt(d.equity);
+    document.getElementById('acct-cash').textContent   = fmt(d.cash);
+    document.getElementById('acct-bp').textContent     = fmt(d.buying_power);
+    document.getElementById('acct-dtc').textContent    = d.daytrade_count ?? '--';
+    document.getElementById('acct-mode').textContent   = (d.mode || d.status || '--').toUpperCase();
+  } catch(e) {
+    panel?.classList.remove('hidden');
+    document.getElementById('acct-equity').textContent = 'Error: ' + e.message;
+  }
+}
+
+async function setExecMode(mode) {
+  const status = document.getElementById('exec-mode-status');
+  if (mode === 'live') {
+    if (!confirm('Switch to LIVE trading? Real money will be used for every automated trade. Make sure your API keys are saved and your kill switch is ready.')) {
+      document.getElementById('exec-mode-select').value = '{{ execution_mode }}';
+      return;
+    }
+  }
+  const r = await fetch('/api/settings', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({execution_mode: mode})
+  });
+  const d = await r.json();
+  if (!r.ok) {
+    if (status) { status.style.color='var(--red)'; status.textContent = d.detail || 'Error'; }
+    return;
+  }
+  if (status) {
+    status.style.color = mode === 'live' ? 'var(--red)' : 'var(--green)';
+    status.textContent = mode === 'live'
+      ? 'LIVE mode active — bot is trading real money.'
+      : `Mode set to ${mode}.`;
+  }
+  const badge = document.getElementById('live-mode-badge');
+  if (badge) badge.textContent = mode === 'live' ? 'LIVE ACTIVE' : 'PAPER / INACTIVE';
+}
+
+async function setCapital() {
+  const val = parseFloat(document.getElementById('capital-input').value);
+  if (!val || val < 100) { document.getElementById('capital-status').textContent = 'Enter a valid amount.'; return; }
+  const r = await fetch('/api/settings', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({paper_capital: val})
+  });
+  const d = await r.json();
+  const el = document.getElementById('capital-status');
+  el.className = 'status-msg mt-2';
+  el.style.color = r.ok ? 'var(--green)' : 'var(--red)';
+  el.textContent = r.ok ? `Capital set to $${d.paper_capital?.toLocaleString() || val}` : (d.detail || 'Error');
+}
+
+async function setMaxTrades() {
+  const val = parseInt(document.getElementById('max-trades-input').value);
+  if (!val || val < 1) { return; }
+  await fetch('/api/settings', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({max_trades_per_day: val})
+  });
+}
+
+async function setAutoExec(enabled) {
+  const r = await fetch('/api/settings', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({auto_paper_execution: enabled})
+  });
+  const el = document.getElementById('auto-exec-status');
+  el.style.color = enabled ? 'var(--green)' : 'var(--text-muted)';
+  el.textContent = enabled
+    ? 'Auto-trader ON — bot will place trades automatically.'
+    : 'Auto-trader OFF — signals only, no automatic orders.';
+}
+
+async function loadWatchlist() {
+  const r = await fetch('/api/watchlist');
+  const symbols = await r.json();
+  const el = document.getElementById('watchlist-symbols');
+  el.innerHTML = symbols.map(s =>
+    `<span class="symbol-tag">${s.symbol}
+      ${s.is_regime ? '' : `<button onclick="removeSymbol('${s.symbol}')" class="tag-remove">×</button>`}
+    </span>`
+  ).join('');
+}
+
+async function addSymbol() {
+  const sym = document.getElementById('add-symbol-input').value.trim().toUpperCase();
+  if (!sym) return;
+  const r = await fetch('/api/watchlist', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({symbols: [sym]})
+  });
+  const d = await r.json();
+  document.getElementById('watchlist-msg').textContent = 'Added: ' + sym + '. Restart app to stream new symbol.';
+  document.getElementById('add-symbol-input').value = '';
+  loadWatchlist();
+}
+
+async function removeSymbol(sym) {
+  if (!confirm(`Remove ${sym} from watchlist?`)) return;
+  await fetch(`/api/watchlist/${sym}`, {method: 'DELETE'});
+  loadWatchlist();
+}
+
+loadWatchlist();
+</script>
+{% endblock %}

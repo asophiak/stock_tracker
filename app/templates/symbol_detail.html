@@ -1,0 +1,297 @@
+{% extends "base.html" %}
+{% block title %}{{ symbol }} — Stock Tracker{% endblock %}
+
+{% block content %}
+<!-- Fixed top bar: symbol info -->
+<div class="price-header-row">
+  <div class="price-block">
+    <div class="price-big" id="sd-price">--</div>
+    <div class="price-change" id="sd-price-change"></div>
+  </div>
+  <div style="display:flex;align-items:center;gap:.5rem">
+    <span id="sd-symbol" style="font-size:1.3rem;font-weight:800;font-family:var(--font-mono)">{{ symbol }}</span>
+    <span id="sd-color-badge" class="signal-badge neutral">NEUTRAL</span>
+    <span id="sd-label-badge" class="label-badge no-trade">NO TRADE</span>
+  </div>
+  <div class="level-block">
+    <div class="level-item"><span class="lbl">VWAP</span><span id="sd-vwap" class="val">--</span></div>
+    <div class="level-item"><span class="lbl">ORH</span><span id="sd-orh" class="val">--</span></div>
+    <div class="level-item"><span class="lbl">ORL</span><span id="sd-orl" class="val">--</span></div>
+    <div class="level-item"><span class="lbl">H</span><span id="sd-sh" class="val">--</span></div>
+    <div class="level-item"><span class="lbl">L</span><span id="sd-sl" class="val">--</span></div>
+  </div>
+  <div class="score-block">
+    <div class="score-ring" id="sd-score-ring">
+      <svg viewBox="0 0 80 80"><circle class="ring-bg" cx="40" cy="40" r="34"/><circle class="ring-fg" id="score-ring-circle" cx="40" cy="40" r="34" stroke-dasharray="213.6" stroke-dashoffset="213.6"/></svg>
+      <span class="score-number" id="sd-score-num">0</span>
+    </div>
+    <div class="score-label">Score</div>
+  </div>
+  <button class="btn btn-xs btn-outline" onclick="resetLayout()" title="Reset panel layout">⟳ Reset Layout</button>
+</div>
+
+<!-- Floating panel canvas -->
+<div id="panel-canvas">
+
+  <!-- Price Chart -->
+  <div class="fp-panel" id="fp-chart">
+    <div class="fp-header fp-drag">
+      <span>Price Chart</span>
+      <div style="display:flex;align-items:center;gap:.4rem">
+        <div class="tf-group">
+          <button class="tf-btn active" id="tf-1m" onclick="switchTimeframe('1m')">1m</button>
+          <button class="tf-btn" id="tf-5m" onclick="switchTimeframe('5m')">5m</button>
+          <button class="tf-btn" id="tf-15m" onclick="switchTimeframe('15m')">15m</button>
+        </div>
+      </div>
+    </div>
+    <div class="fp-body" style="padding:0;overflow:hidden">
+      <div class="chart-container" id="price-chart-container" style="width:100%;height:100%"></div>
+    </div>
+    <div class="fp-resize-se"></div>
+  </div>
+
+  <!-- Trade Thesis -->
+  <div class="fp-panel" id="fp-thesis">
+    <div class="fp-header fp-drag">Trade Thesis</div>
+    <div class="fp-body" id="thesis-content">
+      <p class="empty-state">No actionable thesis yet.</p>
+    </div>
+    <div class="fp-resize-se"></div>
+  </div>
+
+  <!-- Whale Tracker -->
+  <div class="fp-panel" id="fp-whale">
+    <div class="fp-header fp-drag">
+      <i data-icon="whale"></i>Whale Tracker
+      <span class="whale-badge" id="whale-sentiment-badge" style="margin-left:.5rem">--</span>
+      <button class="btn-icon" onclick="refreshWhaleData()" style="margin-left:auto;font-size:.7rem;padding:2px 6px">↻</button>
+    </div>
+    <div class="fp-body" id="whale-content">
+      <p class="empty-state">Fetching institutional data…</p>
+    </div>
+    <div class="fp-resize-se"></div>
+  </div>
+
+  <!-- Signal Components -->
+  <div class="fp-panel" id="fp-components">
+    <div class="fp-header fp-drag">Signal Components</div>
+    <div class="fp-body" id="component-bars" class="component-bars"></div>
+    <div class="fp-resize-se"></div>
+  </div>
+
+  <!-- Detected Patterns + History -->
+  <div class="fp-panel" id="fp-patterns">
+    <div class="fp-header fp-drag">Detected Patterns</div>
+    <div class="fp-body ph-body">
+      <!-- Live: patterns detected right now -->
+      <div id="patterns-list" class="patterns-now">
+        <p class="empty-state">No patterns detected.</p>
+      </div>
+      <!-- Historical log -->
+      <div class="ph-divider">
+        <span>History</span>
+      </div>
+      <div id="pattern-history" class="ph-feed">
+        <p class="ph-empty">Loading…</p>
+      </div>
+    </div>
+    <div class="fp-resize-se"></div>
+  </div>
+
+  <!-- News -->
+  <div class="fp-panel" id="fp-news">
+    <div class="fp-header fp-drag">
+      News
+      <button class="btn-icon" onclick="refreshNews()" style="margin-left:auto;font-size:.7rem;padding:2px 6px" title="Refresh news">↻</button>
+    </div>
+    <div class="fp-body news-list" id="news-content">
+      <p class="empty-state">Loading news...</p>
+    </div>
+    <div class="fp-resize-se"></div>
+  </div>
+
+  <!-- Open Positions -->
+  <div class="fp-panel" id="fp-positions">
+    <div class="fp-header fp-drag">Open Positions</div>
+    <div class="fp-body" id="symbol-positions" class="positions-list">
+      <p class="empty-state">No open position.</p>
+    </div>
+    <div class="fp-resize-se"></div>
+  </div>
+
+  <!-- Quick Order -->
+  <div class="fp-panel" id="fp-order">
+    <div class="fp-header fp-drag">Quick Order</div>
+    <div class="fp-body">
+      <div class="quick-order-form">
+        <select id="qo-side" class="input input-sm">
+          <option value="buy">Buy (Long)</option>
+          <option value="sell">Sell (Short)</option>
+        </select>
+        <input id="qo-qty" type="number" value="10" min="1" class="input input-sm" placeholder="Qty"/>
+        <input id="qo-stop" type="number" step="0.01" class="input input-sm" placeholder="Stop price"/>
+        <input id="qo-target" type="number" step="0.01" class="input input-sm" placeholder="Target price"/>
+        <button onclick="submitDetailOrder()" class="btn btn-primary btn-sm w-full mt-2">Submit Paper Order</button>
+        <div id="order-status" class="order-status"></div>
+      </div>
+    </div>
+    <div class="fp-resize-se"></div>
+  </div>
+
+</div><!-- /panel-canvas -->
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/symbol_detail.js?v={{ v | default('1') }}"></script>
+<script>
+const SYMBOL = '{{ symbol }}';
+const STORAGE_KEY = 'fp_layout_' + SYMBOL;
+
+// Default layout — [left, top, width, height]
+const DEFAULT_LAYOUT = {
+  'fp-chart':      [0,    0,   680, 460],
+  'fp-thesis':     [692,  0,   340, 280],
+  'fp-whale':      [692,  292, 340, 280],
+  'fp-components': [0,    472, 440, 220],
+  'fp-patterns':   [452,  472, 228, 220],
+  'fp-news':       [0,    704, 500, 260],
+  'fp-positions':  [692,  584, 340, 180],
+  'fp-order':      [692,  776, 340, 200],
+};
+
+function saveLayout() {
+  const layout = {};
+  document.querySelectorAll('.fp-panel').forEach(p => {
+    layout[p.id] = [
+      parseInt(p.style.left),
+      parseInt(p.style.top),
+      parseInt(p.style.width),
+      parseInt(p.style.height),
+    ];
+  });
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(layout));
+}
+
+function applyLayout(layout) {
+  const canvas = document.getElementById('panel-canvas');
+  let maxBottom = 600;
+  Object.entries(layout).forEach(([id, [l, t, w, h]]) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.left   = l + 'px';
+    el.style.top    = t + 'px';
+    el.style.width  = w + 'px';
+    el.style.height = h + 'px';
+    maxBottom = Math.max(maxBottom, t + h + 20);
+  });
+  canvas.style.height = maxBottom + 'px';
+}
+
+function resetLayout() {
+  localStorage.removeItem(STORAGE_KEY);
+  applyLayout(DEFAULT_LAYOUT);
+  // Re-fit chart after layout
+  setTimeout(() => { if (window._lwcResizeChart) window._lwcResizeChart(); }, 50);
+}
+
+function loadLayout() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) return JSON.parse(saved);
+  } catch(e) {}
+  return DEFAULT_LAYOUT;
+}
+
+// ── Drag + Resize engine ─────────────────────────────────────────────────────
+(function() {
+  let action = null; // { type:'drag'|'resize', panel, startX, startY, startL, startT, startW, startH }
+
+  function bringToFront(panel) {
+    let max = 0;
+    document.querySelectorAll('.fp-panel').forEach(p => {
+      max = Math.max(max, parseInt(p.style.zIndex) || 10);
+    });
+    panel.style.zIndex = max + 1;
+  }
+
+  document.querySelectorAll('.fp-panel').forEach(panel => {
+    // Drag via header
+    const header = panel.querySelector('.fp-drag');
+    if (header) {
+      header.addEventListener('mousedown', function(e) {
+        if (e.target.tagName === 'BUTTON' || e.target.tagName === 'SELECT' || e.target.closest('button')) return;
+        bringToFront(panel);
+        action = {
+          type: 'drag',
+          panel,
+          startX: e.clientX,
+          startY: e.clientY,
+          startL: parseInt(panel.style.left) || 0,
+          startT: parseInt(panel.style.top)  || 0,
+        };
+        document.body.style.userSelect = 'none';
+        e.preventDefault();
+      });
+    }
+
+    // Resize via SE corner handle
+    const resizeHandle = panel.querySelector('.fp-resize-se');
+    if (resizeHandle) {
+      resizeHandle.addEventListener('mousedown', function(e) {
+        bringToFront(panel);
+        action = {
+          type: 'resize',
+          panel,
+          startX: e.clientX,
+          startY: e.clientY,
+          startW: parseInt(panel.style.width)  || panel.offsetWidth,
+          startH: parseInt(panel.style.height) || panel.offsetHeight,
+        };
+        document.body.style.userSelect = 'none';
+        e.preventDefault();
+        e.stopPropagation();
+      });
+    }
+
+    // Bring to front on click
+    panel.addEventListener('mousedown', function() { bringToFront(panel); });
+  });
+
+  document.addEventListener('mousemove', function(e) {
+    if (!action) return;
+    const dx = e.clientX - action.startX;
+    const dy = e.clientY - action.startY;
+    const canvas = document.getElementById('panel-canvas');
+
+    if (action.type === 'drag') {
+      const newL = Math.max(0, action.startL + dx);
+      const newT = Math.max(0, action.startT + dy);
+      action.panel.style.left = newL + 'px';
+      action.panel.style.top  = newT + 'px';
+      // Expand canvas if needed
+      const bottom = newT + action.panel.offsetHeight + 20;
+      if (bottom > parseInt(canvas.style.height)) canvas.style.height = bottom + 'px';
+    } else if (action.type === 'resize') {
+      const newW = Math.max(200, action.startW + dx);
+      const newH = Math.max(120, action.startH + dy);
+      action.panel.style.width  = newW + 'px';
+      action.panel.style.height = newH + 'px';
+      // Resize chart if this is the chart panel
+      if (action.panel.id === 'fp-chart' && window._lwcResizeChart) window._lwcResizeChart();
+    }
+  });
+
+  document.addEventListener('mouseup', function() {
+    if (!action) return;
+    document.body.style.userSelect = '';
+    saveLayout();
+    action = null;
+  });
+})();
+
+// Apply saved (or default) layout, then init data
+applyLayout(loadLayout());
+initSymbolDetail(SYMBOL);
+</script>
+{% endblock %}

@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Whale Wallet Tracker — Stock Tracker{% endblock %}
+
+{% block content %}
+<div class="ww-page">
+
+  <!-- ── Header ──────────────────────────────────────────────────────────── -->
+  <div class="ww-header">
+    <div class="ww-title-row">
+      <h1 class="ww-title"><i data-icon="whale"></i>Whale Wallet Tracker</h1>
+      <span class="ww-subtitle">13F Institutional Position Changes</span>
+      <span class="ww-updated" id="ww-updated"></span>
+      <button class="btn btn-sm btn-outline" onclick="refreshWhales(true)">↻ Refresh</button>
+    </div>
+    <!-- Filter bar -->
+    <div class="ww-filter-bar">
+      <span class="ww-filter-label">Filter:</span>
+      <button class="ww-filter-btn active" data-filter="all"     onclick="setFilter('all')">All</button>
+      <button class="ww-filter-btn"        data-filter="bullish" onclick="setFilter('bullish')"><span class="dot-pos"></span>Buys &amp; Adds</button>
+      <button class="ww-filter-btn"        data-filter="bearish" onclick="setFilter('bearish')"><span class="dot-neg"></span>Sells &amp; Puts</button>
+      <span class="ww-filter-sep">|</span>
+      <span class="ww-filter-label">Fund:</span>
+      <div class="ww-fund-pills" id="ww-fund-pills"></div>
+    </div>
+  </div>
+
+  <!-- ── Fund overview cards ─────────────────────────────────────────────── -->
+  <div class="ww-fund-cards" id="ww-fund-cards">
+    <p class="empty-state">Loading fund data…</p>
+  </div>
+
+  <!-- ── Trades feed ─────────────────────────────────────────────────────── -->
+  <div class="ww-feed-wrap">
+    <div class="ww-feed-header">
+      <span class="ww-feed-col ww-col-fund">Fund</span>
+      <span class="ww-feed-col ww-col-action">Action</span>
+      <span class="ww-feed-col ww-col-ticker">Ticker / Issuer</span>
+      <span class="ww-feed-col ww-col-shares">Shares</span>
+      <span class="ww-feed-col ww-col-value">$ Value</span>
+      <span class="ww-feed-col ww-col-chg">Δ vs Prior</span>
+      <span class="ww-feed-col ww-col-qtr">Quarter</span>
+    </div>
+    <div class="ww-feed" id="ww-feed">
+      <p class="empty-state" style="padding:1.5rem">Loading whale activity…</p>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/whales.js?v={{ v | default('1') }}"></script>
+{% endblock %}

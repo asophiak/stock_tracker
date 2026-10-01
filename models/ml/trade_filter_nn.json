@@ -1,0 +1,85 @@
+{
+  "kind": "nn",
+  "trained_at": "2026-10-01T03:09:53.162741+00:00",
+  "features": [
+    "engine_scalp",
+    "direction",
+    "engine_score",
+    "minutes_since_open",
+    "atr_pct",
+    "stop_atr",
+    "ret_1_atr",
+    "ret_5_atr",
+    "ret_15_atr",
+    "ret_30_atr",
+    "vwap_dist_atr",
+    "rsi7_signed",
+    "rsi14_signed",
+    "ema9_21_atr",
+    "vol_ratio_1_30",
+    "vol_ratio_5_30",
+    "range_pos",
+    "session_range_atr",
+    "room_atr",
+    "last_body_atr",
+    "bar_trend_10"
+  ],
+  "seq_len": 60,
+  "threshold": 0.48,
+  "epochs": 3,
+  "n_samples": 313509,
+  "sessions": [
+    "2026-06-09",
+    "2026-09-30"
+  ],
+  "test_metrics": {
+    "all": {
+      "n": 73303,
+      "base_win_rate": 0.447812504263127,
+      "base_avg_r": -0.02763178209134989,
+      "auc": 0.5415585723143129,
+      "auc_engine_score": 0.49145517078906537,
+      "brier": 0.24615246089400472,
+      "kept_frac": 0.21184671841534453,
+      "kept_win_rate": 0.4935926331379999,
+      "kept_avg_r": 0.0005700164821547942,
+      "skipped_avg_r": -0.035212107671160085
+    },
+    "scalp": {
+      "n": 72302,
+      "base_win_rate": 0.44827252358164366,
+      "base_avg_r": -0.029238116962972373,
+      "auc": 0.5408303615751924,
+      "auc_engine_score": 0.4917949018368874,
+      "brier": 0.24625926926389805,
+      "kept_frac": 0.21099001410749357,
+      "kept_win_rate": 0.49275647328744676,
+      "kept_avg_r": 7.865189800404805e-05,
+      "skipped_avg_r": -0.037077745847474544
+    },
+    "swing": {
+      "n": 1001,
+      "base_win_rate": 0.4145854145854146,
+      "base_avg_r": 0.08839341659800957,
+      "auc": 0.581857806653234,
+      "auc_engine_score": 0.44899872527653273,
+      "brier": 0.2384377168779917,
+      "kept_frac": 0.27372627372627373,
+      "kept_win_rate": 0.5401459854014599,
+      "kept_avg_r": 0.02792682936981775,
+      "skipped_avg_r": 0.11118274933600758
+    }
+  },
+  "gbm_baseline_test": {
+    "n": 73303,
+    "base_win_rate": 0.447812504263127,
+    "base_avg_r": -0.02763178209134989,
+    "auc": 0.5438209584964816,
+    "auc_engine_score": 0.49145517078906537,
+    "brier": 0.24635083518244472,
+    "kept_frac": 0.2570290438317668,
+    "kept_win_rate": 0.4911628894432355,
+    "kept_avg_r": 0.007361185258889925,
+    "skipped_avg_r": -0.03973751632523532
+  }
+}
